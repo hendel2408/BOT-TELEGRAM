@@ -157,3 +157,11 @@ Puxar no outro PC e sobrescrever os arquivos versionados:
 git fetch origin
 git reset --hard origin/main
 ```
+
+
+Então esse fluxo serve para o PC que também vai editar código:
+
+git pull --rebase origin main
+git add .
+git commit -m "Sua alteracao"
+git push
