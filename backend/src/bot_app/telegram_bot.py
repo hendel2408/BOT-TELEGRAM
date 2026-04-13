@@ -1,8 +1,9 @@
 import asyncio
 import os
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 from telegram import Update
+from telegram.helpers import escape_markdown
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
 from bot_app.automations.bluepex import liberar_visitante
@@ -27,15 +28,19 @@ CIANO = "\033[96m"
 NEGRITO = "\033[1m"
 
 
+def md(value):
+    return escape_markdown("" if value is None else str(value), version=1)
+
+
 def extrair_nome_mac(texto: str):
     bruto = texto.replace("/liberar", "", 1).strip()
     bruto = bruto.replace("\n", " ").replace("\r", " ")
 
     if "|" not in bruto:
         raise ValueError(
-            "🟥 FORMATO INVÁLIDO\n\n"
-            "📌 Use corretamente:\n"
-            "🟦 /liberar Nome do Visitante | AA:BB:CC:DD:EE:FF"
+            "Formato invalido.\n\n"
+            "Use corretamente:\n"
+            "/liberar Nome do Visitante | AA:BB:CC:DD:EE:FF"
         )
 
     nome, mac = bruto.split("|", 1)
@@ -44,9 +49,9 @@ def extrair_nome_mac(texto: str):
     mac = mac.strip()
 
     if not nome:
-        raise ValueError("🟥 Nome do visitante não informado.")
+        raise ValueError("Nome do visitante nao informado.")
     if not mac:
-        raise ValueError("🟥 Endereço MAC não informado.")
+        raise ValueError("Endereco MAC nao informado.")
 
     return nome, mac
 
@@ -55,38 +60,39 @@ def extrair_nome_data(texto: str):
     bruto = texto.replace("/consultor", "", 1).strip()
 
     if "|" not in bruto:
-        raise ValueError("Formato inválido. Use: /consultor Nome | DD/MM/AAAA")
+        raise ValueError("Formato invalido. Use: /consultor Nome | DD/MM/AAAA")
 
-    nome, data = bruto.split("|", 1)  # 👈 MUITO IMPORTANTE
+    nome, data = bruto.split("|", 1)
 
     nome = nome.strip()
     data = data.strip()
 
     if not nome:
-        raise ValueError("Nome não informado.")
+        raise ValueError("Nome nao informado.")
 
     if not data:
-        raise ValueError("Data não informada.")
+        raise ValueError("Data nao informada.")
 
     return nome, data
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message:
+        return
+
     await update.message.reply_text(
-        "🟢 *BOT ONLINE* 🟢\n\n"
-        "🚀 Sistema de automações ativo\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "📌 *COMANDOS DISPONÍVEIS:*\n\n"
-        "1️⃣ *Liberar visitante no BluePex*\n"
-        "`/liberar Nome do Visitante / AA:BB:CC:DD:EE:FF`\n\n"
-        "💡 *Exemplo:*\n"
-        "`/liberar João Silva / 00:11:22:33:44:55`\n\n"
-        "2️⃣ *Liberar consultor no CS*\n"
-        "`/consultor NOME_DO_CONSULTOR / DD/MM/AAAA`\n\n"
-        "💡 *Exemplo:*\n"
-        "`/consultor CSCELSO / 28/04/2026`\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━",
-        parse_mode="Markdown"
+        "BOT ONLINE\n\n"
+        "Sistema de automacoes ativo\n\n"
+        "COMANDOS DISPONIVEIS:\n\n"
+        "1. Liberar visitante no BluePex\n"
+        "`/liberar Nome do Visitante | AA:BB:CC:DD:EE:FF`\n\n"
+        "Exemplo:\n"
+        "`/liberar Joao Silva | 00:11:22:33:44:55`\n\n"
+        "2. Liberar consultor no CS\n"
+        "`/consultor NOME_DO_CONSULTOR | DD/MM/AAAA`\n\n"
+        "Exemplo:\n"
+        "`/consultor CSCELSO | 28/04/2026`",
+        parse_mode="Markdown",
     )
 
 
@@ -99,7 +105,7 @@ async def liberar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         nome, mac = extrair_nome_mac(texto)
     except Exception as e:
-        await update.message.reply_text(f"❌ {e}")
+        await update.message.reply_text(f"Erro: {e}")
         return
 
     ticket = submit_job(
@@ -112,24 +118,20 @@ async def liberar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if ticket["position"] == 0:
             await update.message.reply_text(
-                f"🔵 *INICIANDO LIBERAÇÃO BLUEPEX*\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 *Nome:* {nome}\n"
-                f"💻 *MAC:* {mac}\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "⏳ Processando...",
-                parse_mode="Markdown"
+                "*INICIANDO LIBERACAO BLUEPEX*\n\n"
+                f"*Nome:* {md(nome)}\n"
+                f"*MAC:* {md(mac)}\n\n"
+                "Processando...",
+                parse_mode="Markdown",
             )
         else:
             await update.message.reply_text(
-                f"🟡 *ADICIONADO NA FILA*\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 *Nome:* {nome}\n"
-                f"💻 *MAC:* {mac}\n"
-                f"📍 *Posição:* {ticket['position']}\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "⏳ Aguarde a vez da automação...",
-                parse_mode="Markdown"
+                "*ADICIONADO NA FILA*\n\n"
+                f"*Nome:* {md(nome)}\n"
+                f"*MAC:* {md(mac)}\n"
+                f"*Posicao:* {md(ticket['position'])}\n\n"
+                "Aguarde a vez da automacao...",
+                parse_mode="Markdown",
             )
 
         print(f"{AZUL}{NEGRITO}[BOT]{RESET} {CIANO}BluePex enfileirado...{RESET}")
@@ -140,35 +142,29 @@ async def liberar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if resultado["sucesso"]:
             await update.message.reply_text(
-                "🟢 *LIBERAÇÃO CONCLUÍDA*\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 *Nome:* {resultado['nome']}\n"
-                f"💻 *MAC:* {resultado['mac']}\n"
-                f"🌐 *IP:* {resultado['ip']}\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "✅ Acesso liberado!",
-                parse_mode="Markdown"
+                "*LIBERACAO CONCLUIDA*\n\n"
+                f"*Nome:* {md(resultado['nome'])}\n"
+                f"*MAC:* {md(resultado['mac'])}\n"
+                f"*IP:* {md(resultado['ip'])}\n\n"
+                "Acesso liberado.",
+                parse_mode="Markdown",
             )
 
-            print(f"{VERDE}{NEGRITO}[SUCESSO]{RESET} {VERDE}Liberação BluePex concluída{RESET}")
+            print(f"{VERDE}{NEGRITO}[SUCESSO]{RESET} {VERDE}Liberacao BluePex concluida{RESET}")
             print(f"{AMARELO}Nome:{RESET} {resultado['nome']}")
             print(f"{AMARELO}MAC:{RESET} {resultado['mac']}")
             print(f"{AMARELO}IP:{RESET} {resultado['ip']}")
-
         else:
             await update.message.reply_text(
-                "🟥 *FALHA NA LIBERAÇÃO*\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"⚠️ *Motivo:* {resultado['mensagem']}\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━",
-                parse_mode="Markdown"
+                "*FALHA NA LIBERACAO*\n\n"
+                f"*Motivo:* {md(resultado['mensagem'])}",
+                parse_mode="Markdown",
             )
 
-            print(f"{VERMELHO}{NEGRITO}[FALHA]{RESET} {VERMELHO}Erro na liberação BluePex{RESET}")
+            print(f"{VERMELHO}{NEGRITO}[FALHA]{RESET} {VERMELHO}Erro na liberacao BluePex{RESET}")
             print(f"{AMARELO}Motivo:{RESET} {resultado['mensagem']}")
-
     except Exception as e:
-        await update.message.reply_text(f"🚨 Erro inesperado: {e}")
+        await update.message.reply_text(f"Erro inesperado: {e}")
         print(f"{VERMELHO}{NEGRITO}[ERRO]{RESET} {e}")
 
 
@@ -181,7 +177,7 @@ async def consultor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         nome_consultor, data_limite = extrair_nome_data(texto)
     except Exception as e:
-        await update.message.reply_text(f"❌ {e}")
+        await update.message.reply_text(f"Erro: {e}")
         return
 
     ticket = submit_job(
@@ -194,24 +190,20 @@ async def consultor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if ticket["position"] == 0:
             await update.message.reply_text(
-                f"🔵 *INICIANDO LIBERAÇÃO CONSULTOR*\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 *Consultor:* {nome_consultor}\n"
-                f"📅 *Data limite:* {data_limite}\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "⏳ Processando...",
-                parse_mode="Markdown"
+                "*INICIANDO LIBERACAO CONSULTOR*\n\n"
+                f"*Consultor:* {md(nome_consultor)}\n"
+                f"*Data limite:* {md(data_limite)}\n\n"
+                "Processando...",
+                parse_mode="Markdown",
             )
         else:
             await update.message.reply_text(
-                f"🟡 *ADICIONADO NA FILA*\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 *Consultor:* {nome_consultor}\n"
-                f"📅 *Data limite:* {data_limite}\n"
-                f"📍 *Posição:* {ticket['position']}\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "⏳ Aguarde a vez da automação...",
-                parse_mode="Markdown"
+                "*ADICIONADO NA FILA*\n\n"
+                f"*Consultor:* {md(nome_consultor)}\n"
+                f"*Data limite:* {md(data_limite)}\n"
+                f"*Posicao:* {md(ticket['position'])}\n\n"
+                "Aguarde a vez da automacao...",
+                parse_mode="Markdown",
             )
 
         print(f"{AZUL}{NEGRITO}[BOT]{RESET} {CIANO}Consultor enfileirado...{RESET}")
@@ -222,33 +214,27 @@ async def consultor(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if resultado["sucesso"]:
             await update.message.reply_text(
-                "🟢 *LIBERAÇÃO DE CONSULTOR CONCLUÍDA*\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 *Consultor:* {nome_consultor}\n"
-                f"📅 *Data limite:* {data_limite}\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                "✅ Acesso liberado com sucesso!",
-                parse_mode="Markdown"
+                "*LIBERACAO DE CONSULTOR CONCLUIDA*\n\n"
+                f"*Consultor:* {md(nome_consultor)}\n"
+                f"*Data limite:* {md(data_limite)}\n\n"
+                "Acesso liberado com sucesso.",
+                parse_mode="Markdown",
             )
 
-            print(f"{VERDE}{NEGRITO}[SUCESSO]{RESET} {VERDE}Liberação de consultor concluída{RESET}")
+            print(f"{VERDE}{NEGRITO}[SUCESSO]{RESET} {VERDE}Liberacao de consultor concluida{RESET}")
             print(f"{AMARELO}Consultor:{RESET} {nome_consultor}")
             print(f"{AMARELO}Data limite:{RESET} {data_limite}")
-
         else:
             await update.message.reply_text(
-                "🟥 *FALHA NA LIBERAÇÃO DO CONSULTOR*\n\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━\n"
-                f"⚠️ *Motivo:* {resultado['mensagem']}\n"
-                "━━━━━━━━━━━━━━━━━━━━━━━",
-                parse_mode="Markdown"
+                "*FALHA NA LIBERACAO DO CONSULTOR*\n\n"
+                f"*Motivo:* {md(resultado['mensagem'])}",
+                parse_mode="Markdown",
             )
 
-            print(f"{VERMELHO}{NEGRITO}[FALHA]{RESET} {VERMELHO}Erro na liberação de consultor{RESET}")
+            print(f"{VERMELHO}{NEGRITO}[FALHA]{RESET} {VERMELHO}Erro na liberacao de consultor{RESET}")
             print(f"{AMARELO}Motivo:{RESET} {resultado['mensagem']}")
-
     except Exception as e:
-        await update.message.reply_text(f"🚨 Erro inesperado: {e}")
+        await update.message.reply_text(f"Erro inesperado: {e}")
         print(f"{VERMELHO}{NEGRITO}[ERRO]{RESET} {e}")
 
 
@@ -258,7 +244,7 @@ def main():
 
     if not TOKEN:
         raise RuntimeError(
-            f"{VERMELHO}{NEGRITO}TELEGRAM_BOT_TOKEN não encontrado no .env{RESET}"
+            f"{VERMELHO}{NEGRITO}TELEGRAM_BOT_TOKEN nao encontrado no .env{RESET}"
         )
 
     app = ApplicationBuilder().token(TOKEN).build()
@@ -267,7 +253,7 @@ def main():
     app.add_handler(CommandHandler("liberar", liberar))
     app.add_handler(CommandHandler("consultor", consultor))
 
-    print(f"{VERDE}{NEGRITO}🤖 Bot iniciado com sucesso...{RESET}")
+    print(f"{VERDE}{NEGRITO}Bot iniciado com sucesso...{RESET}")
     app.run_polling()
 
 
