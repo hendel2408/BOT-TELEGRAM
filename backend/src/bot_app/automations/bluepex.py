@@ -1,9 +1,11 @@
+import os
 import re
 import time
 import socket
 import platform
 import subprocess
 
+from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -11,15 +13,18 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
-from bot_app.common.paths import IP_LIVRE_PATH, ensure_runtime_dirs
+from bot_app.common.paths import ENV_PATH, IP_LIVRE_PATH, ensure_runtime_dirs
+
+load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 # ================= CONFIG =================
-URL_LOGIN = "http://45.71.68.53:5080/"
-URL_DHCP = "http://45.71.68.53:5080/services_dhcp.php?if=opt2"
-URL_LIBERACAO = "http://45.71.68.53:5080/services_dhcp_edit.php?if=opt2"
+BLUEPEX_URL_BASE = (os.getenv("BLUEPEX_URL") or "").rstrip("/")
+URL_LOGIN = f"{BLUEPEX_URL_BASE}/" if BLUEPEX_URL_BASE else ""
+URL_DHCP = f"{BLUEPEX_URL_BASE}/services_dhcp.php?if=opt2" if BLUEPEX_URL_BASE else ""
+URL_LIBERACAO = f"{BLUEPEX_URL_BASE}/services_dhcp_edit.php?if=opt2" if BLUEPEX_URL_BASE else ""
 
-USUARIO = "admin"
-SENHA = "gcv@acesso"
+USUARIO = os.getenv("BLUEPEX_USUARIO")
+SENHA = os.getenv("BLUEPEX_SENHA")
 
 REDE_BASE = "192.168"
 RANGES = [7, 9]
@@ -44,6 +49,21 @@ ESPERA_PADRAO = 15
 # =========================================
 
 
+def validar_env_bluepex():
+    variaveis = {
+        "BLUEPEX_URL": BLUEPEX_URL_BASE,
+        "BLUEPEX_USUARIO": USUARIO,
+        "BLUEPEX_SENHA": SENHA,
+    }
+
+    faltando = [chave for chave, valor in variaveis.items() if not valor]
+
+    if faltando:
+        raise RuntimeError(
+            f"Variaveis nao encontradas no .env: {', '.join(faltando)}"
+        )
+
+
 def iniciar_driver():
     options = webdriver.ChromeOptions()
 
@@ -56,7 +76,6 @@ def iniciar_driver():
     options.add_argument("--disable-blink-features=AutomationControlled")
 
     # Mantém o Chrome aberto mesmo após o script terminar
-    options.add_experimental_option("detach", True)
 
     return webdriver.Chrome(options=options)
 
@@ -440,8 +459,11 @@ def clicar_aplicar_mudancas(driver):
 
 def liberar_visitante(nome_visitante, mac_visitante):
     driver = None
+    fechar_driver_no_final = False
 
     try:
+        validar_env_bluepex()
+
         nome_visitante = (nome_visitante or "").strip()
         if not nome_visitante:
             return {
@@ -509,6 +531,7 @@ def liberar_visitante(nome_visitante, mac_visitante):
         print("Liberação concluída com sucesso.")
         print(f"Visitante: {nome_visitante}")
         print(f"MAC: {mac_visitante}")
+        fechar_driver_no_final = True
         print(f"IP liberado: {ip_livre}")
         print("O script terminou. O Chrome permanecerá aberto.")
 
@@ -543,7 +566,11 @@ def liberar_visitante(nome_visitante, mac_visitante):
     finally:
         # Não fecha o Chrome. Como usamos detach=True,
         # ele permanece aberto após o fim do script.
-        pass
+        if driver and fechar_driver_no_final:
+            try:
+                driver.quit()
+            except Exception:
+                pass
 
 
 def main():
