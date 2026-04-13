@@ -271,6 +271,9 @@ def selecionar_select_por_elemento(select_el, valor: str):
 # LOGIN
 # =========================================================
 def fazer_login(driver):
+    if USUARIO is None or SENHA is None:
+        raise RuntimeError("Credenciais do CS nao foram carregadas do .env.")
+
     log("Abrindo tela de login...")
     driver.get(URL_LOGIN)
     time.sleep(3)
