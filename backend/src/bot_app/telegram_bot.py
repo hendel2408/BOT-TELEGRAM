@@ -81,14 +81,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     await update.message.reply_text(
-        "BOT ONLINE\n\n"
-        "Sistema de automacoes ativo\n\n"
-        "COMANDOS DISPONIVEIS:\n\n"
-        "1. Liberar visitante no BluePex\n"
+        "🤖 *BOT ONLINE*\n\n"
+        "Sistema de automacoes ativo.\n\n"
+        "*COMANDOS DISPONIVEIS:*\n\n"
+        "1. 🧾 Liberar visitante no BluePex\n"
         "`/liberar Nome do Visitante | AA:BB:CC:DD:EE:FF`\n\n"
         "Exemplo:\n"
         "`/liberar Joao Silva | 00:11:22:33:44:55`\n\n"
-        "2. Liberar consultor no CS\n"
+        "2. ✅ Liberar consultor no CS\n"
         "`/consultor NOME_DO_CONSULTOR | DD/MM/AAAA`\n\n"
         "Exemplo:\n"
         "`/consultor CSCELSO | 28/04/2026`",
@@ -118,7 +118,7 @@ async def liberar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if ticket["position"] == 0:
             await update.message.reply_text(
-                "*INICIANDO LIBERACAO BLUEPEX*\n\n"
+                "🚀 *INICIANDO LIBERACAO BLUEPEX*\n\n"
                 f"*Nome:* {md(nome)}\n"
                 f"*MAC:* {md(mac)}\n\n"
                 "Processando...",
@@ -126,7 +126,7 @@ async def liberar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             await update.message.reply_text(
-                "*ADICIONADO NA FILA*\n\n"
+                "⏳ *ADICIONADO NA FILA*\n\n"
                 f"*Nome:* {md(nome)}\n"
                 f"*MAC:* {md(mac)}\n"
                 f"*Posicao:* {md(ticket['position'])}\n\n"
@@ -142,7 +142,7 @@ async def liberar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if resultado["sucesso"]:
             await update.message.reply_text(
-                "*LIBERACAO CONCLUIDA*\n\n"
+                "✅ *LIBERACAO CONCLUIDA*\n\n"
                 f"*Nome:* {md(resultado['nome'])}\n"
                 f"*MAC:* {md(resultado['mac'])}\n"
                 f"*IP:* {md(resultado['ip'])}\n\n"
@@ -156,7 +156,7 @@ async def liberar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"{AMARELO}IP:{RESET} {resultado['ip']}")
         else:
             await update.message.reply_text(
-                "*FALHA NA LIBERACAO*\n\n"
+                "⚠️ *FALHA NA LIBERACAO*\n\n"
                 f"*Motivo:* {md(resultado['mensagem'])}",
                 parse_mode="Markdown",
             )
@@ -190,7 +190,7 @@ async def consultor(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if ticket["position"] == 0:
             await update.message.reply_text(
-                "*INICIANDO LIBERACAO CONSULTOR*\n\n"
+                "🚀 *INICIANDO LIBERACAO CONSULTOR*\n\n"
                 f"*Consultor:* {md(nome_consultor)}\n"
                 f"*Data limite:* {md(data_limite)}\n\n"
                 "Processando...",
@@ -198,7 +198,7 @@ async def consultor(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             await update.message.reply_text(
-                "*ADICIONADO NA FILA*\n\n"
+                "⏳ *ADICIONADO NA FILA*\n\n"
                 f"*Consultor:* {md(nome_consultor)}\n"
                 f"*Data limite:* {md(data_limite)}\n"
                 f"*Posicao:* {md(ticket['position'])}\n\n"
@@ -214,7 +214,7 @@ async def consultor(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if resultado["sucesso"]:
             await update.message.reply_text(
-                "*LIBERACAO DE CONSULTOR CONCLUIDA*\n\n"
+                "✅ *LIBERACAO DE CONSULTOR CONCLUIDA*\n\n"
                 f"*Consultor:* {md(nome_consultor)}\n"
                 f"*Data limite:* {md(data_limite)}\n\n"
                 "Acesso liberado com sucesso.",
@@ -226,7 +226,7 @@ async def consultor(update: Update, context: ContextTypes.DEFAULT_TYPE):
             print(f"{AMARELO}Data limite:{RESET} {data_limite}")
         else:
             await update.message.reply_text(
-                "*FALHA NA LIBERACAO DO CONSULTOR*\n\n"
+                "⚠️ *FALHA NA LIBERACAO DO CONSULTOR*\n\n"
                 f"*Motivo:* {md(resultado['mensagem'])}",
                 parse_mode="Markdown",
             )
