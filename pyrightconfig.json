@@ -5,10 +5,16 @@
     "backend/src"
   ],
   "exclude": [
+    "**/node_modules",
+    "**/.git",
+    "**/.venv",
+    "**/typings",
     "**/__pycache__",
     "backend/data",
     "scripts",
     "frontend",
+    "frontend/dist",
+    "frontend/.vite",
     "venv"
   ],
   "venvPath": ".",
