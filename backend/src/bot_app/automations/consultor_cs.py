@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.common.exceptions import (
     TimeoutException,
@@ -24,6 +25,8 @@ load_dotenv(dotenv_path=ENV_PATH, override=True)
 URL_LOGIN = os.getenv("CS_URL_LOGIN")
 USUARIO = os.getenv("CS_USER")
 SENHA = os.getenv("CS_PASSWORD")
+CHROMEDRIVER_PATH = (os.getenv("CHROMEDRIVER_PATH") or "").strip()
+CHROME_BINARY_PATH = (os.getenv("CHROME_BINARY_PATH") or "").strip()
 
 HEADLESS = False
 TEMPO_PADRAO = 20
@@ -114,7 +117,32 @@ def iniciar_driver():
     options.add_argument("--disable-popup-blocking")
     options.add_experimental_option("detach", True)
 
-    driver = webdriver.Chrome(options=options)
+    if CHROME_BINARY_PATH:
+        if not os.path.isfile(CHROME_BINARY_PATH):
+            raise RuntimeError(
+                f"CHROME_BINARY_PATH invalido: arquivo nao encontrado em '{CHROME_BINARY_PATH}'."
+            )
+        options.binary_location = CHROME_BINARY_PATH
+
+    try:
+        if CHROMEDRIVER_PATH:
+            if not os.path.isfile(CHROMEDRIVER_PATH):
+                raise RuntimeError(
+                    f"CHROMEDRIVER_PATH invalido: arquivo nao encontrado em '{CHROMEDRIVER_PATH}'."
+                )
+            driver = webdriver.Chrome(
+                service=Service(executable_path=CHROMEDRIVER_PATH),
+                options=options,
+            )
+        else:
+            driver = webdriver.Chrome(options=options)
+    except WebDriverException as exc:
+        raise RuntimeError(
+            "Falha ao iniciar o ChromeDriver. Instale o Google Chrome nesta maquina "
+            "ou defina CHROMEDRIVER_PATH (e opcionalmente CHROME_BINARY_PATH) no .env. "
+            f"Detalhe tecnico: {exc}"
+        ) from exc
+
     driver.set_page_load_timeout(60)
     return driver
 

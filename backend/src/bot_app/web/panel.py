@@ -1,4 +1,5 @@
 import os
+import ipaddress
 
 from flask import Flask, jsonify, request, send_from_directory
 
@@ -12,9 +13,58 @@ from bot_app.services.job_queue import snapshot_queue, submit_job
 APP_HOST = os.getenv("PAINEL_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("PAINEL_PORT", "5000"))
 SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "painel-local-altere-esta-chave")
+PAINEL_INTERNO_APENAS = os.getenv("PAINEL_INTERNO_APENAS", "1").lower() not in {
+    "0",
+    "false",
+    "no",
+    "off",
+}
+PAINEL_CONFIAR_PROXY = os.getenv("PAINEL_CONFIAR_PROXY", "0").lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
+
+
+def _ip_cliente():
+    if PAINEL_CONFIAR_PROXY:
+        forwarded_for = (request.headers.get("X-Forwarded-For") or "").strip()
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+
+    return (request.remote_addr or "").strip()
+
+
+def _ip_interno(ip_texto):
+    try:
+        ip = ipaddress.ip_address(ip_texto)
+    except ValueError:
+        return False
+
+    return ip.is_loopback or ip.is_private or ip.is_link_local
+
+
+@app.before_request
+def bloquear_acesso_externo():
+    if not PAINEL_INTERNO_APENAS:
+        return None
+
+    if _ip_interno(_ip_cliente()):
+        return None
+
+    return (
+        jsonify(
+            {
+                "ok": False,
+                "message": "Acesso externo bloqueado. Painel disponivel apenas na rede interna.",
+            }
+        ),
+        403,
+    )
 
 def snapshot_estado():
     estado_fila = snapshot_queue()

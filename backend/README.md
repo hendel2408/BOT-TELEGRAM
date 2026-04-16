@@ -23,3 +23,14 @@ Painel + bot:
 ```powershell
 python backend\main.py
 ```
+
+## Selenium (ChromeDriver)
+
+Se aparecer erro `Unable to obtain driver for chrome`, configure no `backend/.env`:
+
+```env
+CHROMEDRIVER_PATH=C:\caminho\para\chromedriver.exe
+CHROME_BINARY_PATH=C:\Program Files\Google\Chrome\Application\chrome.exe
+```
+
+`CHROME_BINARY_PATH` e opcional. `CHROMEDRIVER_PATH` so e necessario quando o Selenium Manager nao consegue localizar/baixar o driver automaticamente.
