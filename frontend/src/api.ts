@@ -1,14 +1,16 @@
-import type { StatusState, SubmitResponse } from "./types";
+import type { AuthState, StatusState, SubmitResponse } from "./types";
 
 
 export async function fetchStatus(): Promise<StatusState> {
   const response = await fetch("/api/status", { cache: "no-store" });
 
+  const payload = await parseJson(response);
+
   if (!response.ok) {
-    throw new Error("Falha ao carregar status.");
+    throw new Error(extractMessage(payload, "Falha ao carregar status."));
   }
 
-  return (await response.json()) as StatusState;
+  return payload as unknown as StatusState;
 }
 
 async function postJson<T>(url: string, body: Record<string, string>): Promise<T> {
@@ -20,13 +22,37 @@ async function postJson<T>(url: string, body: Record<string, string>): Promise<T
     body: JSON.stringify(body)
   });
 
-  const payload = (await response.json()) as T;
+  const payload = (await parseJson(response)) as T;
 
   if (!response.ok) {
-    throw new Error((payload as SubmitResponse).message || "Falha ao enviar requisicao.");
+    throw new Error(
+      extractMessage(payload as Record<string, unknown>, "Falha ao enviar requisicao.")
+    );
   }
 
   return payload;
+}
+
+async function parseJson(response: Response): Promise<Record<string, unknown>> {
+  const raw = await response.text();
+
+  if (!raw) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    return {
+      ok: false,
+      message: "Resposta invalida do servidor."
+    };
+  }
+}
+
+function extractMessage(payload: Record<string, unknown>, fallback: string): string {
+  const message = payload.message;
+  return typeof message === "string" && message.trim() ? message : fallback;
 }
 
 export function submitBluepex(nome: string, mac: string): Promise<SubmitResponse> {
@@ -35,4 +61,23 @@ export function submitBluepex(nome: string, mac: string): Promise<SubmitResponse
 
 export function submitConsultor(nome: string, data_limite: string): Promise<SubmitResponse> {
   return postJson<SubmitResponse>("/jobs/consultor", { nome, data_limite });
+}
+
+export function loginPainel(login: string, senha: string): Promise<AuthState> {
+  return postJson<AuthState>("/auth/login", { login, senha });
+}
+
+export function logoutPainel(): Promise<AuthState> {
+  return postJson<AuthState>("/auth/logout", {});
+}
+
+export async function fetchAuthState(): Promise<AuthState> {
+  const response = await fetch("/auth/me", { cache: "no-store" });
+  const payload = await parseJson(response);
+
+  if (!response.ok) {
+    throw new Error(extractMessage(payload, "Falha ao consultar autenticacao."));
+  }
+
+  return payload as unknown as AuthState;
 }

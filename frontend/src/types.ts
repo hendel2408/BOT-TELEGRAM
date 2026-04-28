@@ -49,3 +49,10 @@ export interface Notice {
   text: string;
   level: "ok" | "aviso" | "erro";
 }
+
+export interface AuthState {
+  ok: boolean;
+  authenticated: boolean;
+  user: string | null;
+  message?: string;
+}

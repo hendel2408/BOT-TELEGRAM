@@ -1,7 +1,7 @@
 import os
 import ipaddress
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, request, send_from_directory, session
 
 from bot_app.automations.bluepex import liberar_visitante
 from bot_app.automations.consultor_cs import liberar_consultor
@@ -13,6 +13,10 @@ from bot_app.services.job_queue import snapshot_queue, submit_job
 APP_HOST = os.getenv("PAINEL_HOST", "0.0.0.0")
 APP_PORT = int(os.getenv("PAINEL_PORT", "5000"))
 SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "painel-local-altere-esta-chave")
+PAINEL_LOGIN_USUARIO = os.getenv("PAINEL_LOGIN_USUARIO", "admin")
+PAINEL_LOGIN_SENHA = os.getenv("PAINEL_LOGIN_SENHA", "gcv@acesso")
+SESSION_AUTH_KEY = "painel_auth_ok"
+SESSION_USER_KEY = "painel_auth_user"
 PAINEL_INTERNO_APENAS = os.getenv("PAINEL_INTERNO_APENAS", "1").lower() not in {
     "0",
     "false",
@@ -28,6 +32,8 @@ PAINEL_CONFIAR_PROXY = os.getenv("PAINEL_CONFIAR_PROXY", "0").lower() in {
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = SECRET_KEY
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 
 def _ip_cliente():
@@ -48,6 +54,22 @@ def _ip_interno(ip_texto):
     return ip.is_loopback or ip.is_private or ip.is_link_local
 
 
+def _autenticado():
+    return bool(session.get(SESSION_AUTH_KEY))
+
+
+def _resposta_nao_autorizado():
+    return (
+        jsonify(
+            {
+                "ok": False,
+                "message": "Nao autenticado. Faca login para acessar o painel.",
+            }
+        ),
+        401,
+    )
+
+
 @app.before_request
 def bloquear_acesso_externo():
     if not PAINEL_INTERNO_APENAS:
@@ -65,6 +87,17 @@ def bloquear_acesso_externo():
         ),
         403,
     )
+
+
+@app.before_request
+def exigir_login_para_api():
+    rota = (request.path or "").strip()
+
+    if rota.startswith("/api/") or rota.startswith("/jobs/"):
+        if not _autenticado():
+            return _resposta_nao_autorizado()
+
+    return None
 
 def snapshot_estado():
     estado_fila = snapshot_queue()
@@ -84,6 +117,49 @@ def request_payload():
     if request.is_json:
         return request.get_json(silent=True) or {}
     return request.form
+
+
+@app.post("/auth/login")
+def auth_login():
+    payload = request_payload()
+    login = (payload.get("login") or payload.get("usuario") or "").strip()
+    senha = (payload.get("senha") or payload.get("password") or "").strip()
+
+    if login != PAINEL_LOGIN_USUARIO or senha != PAINEL_LOGIN_SENHA:
+        return jsonify({"ok": False, "message": "Login ou senha invalidos."}), 401
+
+    session.clear()
+    session[SESSION_AUTH_KEY] = True
+    session[SESSION_USER_KEY] = PAINEL_LOGIN_USUARIO
+
+    return jsonify(
+        {
+            "ok": True,
+            "authenticated": True,
+            "user": PAINEL_LOGIN_USUARIO,
+            "message": "Login realizado com sucesso.",
+        }
+    )
+
+
+@app.post("/auth/logout")
+def auth_logout():
+    session.clear()
+    return jsonify({"ok": True, "authenticated": False, "message": "Sessao encerrada."})
+
+
+@app.get("/auth/me")
+def auth_me():
+    if not _autenticado():
+        return jsonify({"ok": True, "authenticated": False, "user": None})
+
+    return jsonify(
+        {
+            "ok": True,
+            "authenticated": True,
+            "user": session.get(SESSION_USER_KEY),
+        }
+    )
 
 
 def response_payload(ticket, tipo, nome):
