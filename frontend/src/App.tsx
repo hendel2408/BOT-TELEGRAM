@@ -587,7 +587,7 @@ export function App() {
           <button
             className="danger-button"
             type="button"
-            disabled={isCancelling || (!state.ocupado && state.fila.length === 0)}
+            disabled={isCancelling}
             onClick={handleCancelAll}
           >
             {isCancelling ? "Cancelando..." : "Cancelar Tudo"}
