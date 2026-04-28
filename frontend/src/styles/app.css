@@ -126,8 +126,7 @@ select {
 }
 
 .cta,
-.ghost,
-.danger-button {
+.ghost {
   border: 0;
   border-radius: 999px;
   padding: 12px 18px;
@@ -148,19 +147,6 @@ select {
 .ghost {
   background: rgba(20, 32, 41, 0.08);
   color: var(--ink);
-}
-
-.danger-button {
-  background: linear-gradient(135deg, #ce4545, #a53232);
-  color: #fff;
-  font-weight: 600;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.danger-button:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
 }
 
 .dashboard-shell {
@@ -192,9 +178,6 @@ select {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: end;
-  position: relative;
-  z-index: 3;
-  pointer-events: auto;
 }
 
 .status-pill,
@@ -463,9 +446,6 @@ select {
   background: var(--danger);
 }
 
-.timeline-step.cancel .dot {
-  background: #8d4fca;
-}
 
 .empty {
   margin: 16px 0 0;

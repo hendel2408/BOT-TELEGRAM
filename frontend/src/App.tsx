@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
-  cancelJobs,
   fetchAuthState,
   fetchStatus,
   loginPainel,
@@ -13,8 +12,8 @@ import type { JobItem, Notice, StatusState } from "./types";
 import { resolveStatusTone, resolveTypeLabel, summarizeJob } from "./utils/labels.js";
 
 type HistoryTypeFilter = "todos" | "bluepex" | "consultor";
-type HistoryStatusFilter = "todos" | "concluido" | "falha" | "cancelado";
-type TimelineState = "done" | "active" | "pending" | "error" | "cancel";
+type HistoryStatusFilter = "todos" | "concluido" | "falha";
+type TimelineState = "done" | "active" | "pending" | "error";
 
 interface TimelineStep {
   id: string;
@@ -124,10 +123,6 @@ function statusLabel(status: string): string {
     return "Falha";
   }
 
-  if (status === "Cancelado") {
-    return "Cancelado";
-  }
-
   return status || "-";
 }
 
@@ -143,9 +138,7 @@ function HistoryList({ items }: { items: JobItem[] }) {
         const statusClass =
           item.status === "Concluido"
             ? "success"
-            : item.status === "Cancelado"
-              ? "warning"
-              : item.status === "Falha"
+            : item.status === "Falha"
                 ? "danger"
                 : "idle";
 
@@ -247,13 +240,6 @@ function buildTimeline(job: JobItem | null): TimelineStep[] {
     return [inQueue, running, completed];
   }
 
-  if (job.status === "Cancelado") {
-    running.state = "done";
-    completed.state = "cancel";
-    completed.title = "Cancelado";
-    return [inQueue, running, completed];
-  }
-
   inQueue.state = "active";
   running.state = "pending";
   return [inQueue, running, completed];
@@ -302,7 +288,6 @@ export function App() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [isSendingBluepex, setIsSendingBluepex] = useState(false);
   const [isSendingConsultor, setIsSendingConsultor] = useState(false);
-  const [isCancelling, setIsCancelling] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
   const [clockMs, setClockMs] = useState(Date.now());
   const [bluepexNome, setBluepexNome] = useState("");
@@ -330,8 +315,7 @@ export function App() {
       const statusOk =
         historyStatusFilter === "todos" ||
         (historyStatusFilter === "concluido" && item.status === "Concluido") ||
-        (historyStatusFilter === "falha" && item.status === "Falha") ||
-        (historyStatusFilter === "cancelado" && item.status === "Cancelado");
+        (historyStatusFilter === "falha" && item.status === "Falha");
 
       if (!typeOk || !statusOk) {
         return false;
@@ -517,33 +501,6 @@ export function App() {
     }
   }
 
-  async function handleCancelAll() {
-    if (isCancelling) {
-      return;
-    }
-
-    setIsCancelling(true);
-
-    try {
-      const response = await Promise.race([
-        cancelJobs(),
-        new Promise<never>((_, reject) => {
-          window.setTimeout(() => reject(new Error("Timeout ao cancelar. Tente novamente.")), 10000);
-        })
-      ]);
-
-      if (response.state) {
-        setState(response.state);
-      }
-
-      pushNotice(response.message || "Cancelamento solicitado.", response.level || "aviso");
-    } catch (error) {
-      pushNotice(error instanceof Error ? error.message : "Falha ao cancelar jobs.", "erro");
-    } finally {
-      setIsCancelling(false);
-    }
-  }
-
   if (booting) {
     return <div className="loading-state">Carregando painel...</div>;
   }
@@ -593,13 +550,6 @@ export function App() {
           <span className="badge">Fila: {state.fila.length}</span>
           <span className="badge">Historico: {state.historico.length}</span>
           <span className="badge">Usuario: {authUser || "-"}</span>
-          <button
-            className="danger-button"
-            type="button"
-            onClick={handleCancelAll}
-          >
-            {isCancelling ? "Cancelando..." : "Cancelar Tudo Agora"}
-          </button>
           <button className="ghost" type="button" onClick={handleLogout}>
             Sair
           </button>
@@ -709,7 +659,6 @@ export function App() {
                 <option value="todos">Todos</option>
                 <option value="concluido">Concluido</option>
                 <option value="falha">Falha</option>
-                <option value="cancelado">Cancelado</option>
               </select>
             </label>
             <label>

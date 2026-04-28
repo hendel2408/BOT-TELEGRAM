@@ -3,9 +3,11 @@ import ipaddress
 
 from flask import Flask, jsonify, request, send_from_directory, session
 
+from bot_app.automations.bluepex import liberar_visitante
+from bot_app.automations.consultor_cs import liberar_consultor
 from bot_app.common.paths import FRONTEND_DIST_DIR
 from bot_app.services.history_store import fetch_recent_history, init_history_store
-from bot_app.services.job_queue import cancel_all_jobs, snapshot_queue, submit_job
+from bot_app.services.job_queue import snapshot_queue, submit_job
 
 
 APP_HOST = os.getenv("PAINEL_HOST", "0.0.0.0")
@@ -214,7 +216,12 @@ def iniciar_bluepex():
         mensagem = "Informe nome e MAC para iniciar a liberacao BluePex."
         return jsonify({"ok": False, "message": mensagem}), 400
 
-    ticket = submit_job("bluepex", "painel", {"nome": nome, "mac": mac})
+    ticket = submit_job(
+        "bluepex",
+        "painel",
+        {"nome": nome, "mac": mac},
+        lambda: liberar_visitante(nome, mac),
+    )
 
     return response_payload(ticket, "bluepex", nome)
 
@@ -229,35 +236,14 @@ def iniciar_consultor():
         mensagem = "Informe consultor e data limite para iniciar a automacao."
         return jsonify({"ok": False, "message": mensagem}), 400
 
-    ticket = submit_job("consultor", "painel", {"nome": nome, "data_limite": data_limite})
+    ticket = submit_job(
+        "consultor",
+        "painel",
+        {"nome": nome, "data_limite": data_limite},
+        lambda: liberar_consultor(nome, data_limite),
+    )
 
     return response_payload(ticket, "consultor", nome)
-
-
-@app.post("/jobs/cancel")
-def cancelar_jobs():
-    resultado = cancel_all_jobs()
-    mensagem = "Solicitacao de cancelamento enviada."
-
-    if resultado["running_cancel_requested"]:
-        mensagem = (
-            f"Job em execucao ({resultado['running_job_id']}) sera interrompido. "
-            f"Fila limpa: {resultado['pending_cancelled']} item(ns)."
-        )
-    elif resultado["pending_cancelled"] > 0:
-        mensagem = f"Fila limpa com {resultado['pending_cancelled']} item(ns) cancelado(s)."
-    else:
-        mensagem = "Nao havia job em execucao nem itens na fila."
-
-    return jsonify(
-        {
-            "ok": True,
-            "level": "aviso",
-            "message": mensagem,
-            "state": snapshot_estado(),
-            "cancel": resultado,
-        }
-    )
 
 
 @app.get("/api/status")

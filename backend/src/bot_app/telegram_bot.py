@@ -6,6 +6,8 @@ from telegram import Update
 from telegram.helpers import escape_markdown
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
+from bot_app.automations.bluepex import liberar_visitante
+from bot_app.automations.consultor_cs import liberar_consultor
 from bot_app.common.paths import ENV_PATH
 from bot_app.services.history_store import init_history_store
 from bot_app.services.job_queue import init_job_queue, submit_job, wait_for_job
@@ -110,6 +112,7 @@ async def liberar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "bluepex",
         "telegram",
         {"nome": nome, "mac": mac},
+        lambda: liberar_visitante(nome, mac),
     )
 
     try:
@@ -181,6 +184,7 @@ async def consultor(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "consultor",
         "telegram",
         {"nome": nome_consultor, "data_limite": data_limite},
+        lambda: liberar_consultor(nome_consultor, data_limite),
     )
 
     try:
