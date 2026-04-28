@@ -16,6 +16,10 @@ export function resolveStatusTone(job) {
     return "running";
   }
 
+  if (job.status === "Cancelado") {
+    return "danger";
+  }
+
   if (job.sucesso === true) {
     return "success";
   }
@@ -34,6 +38,10 @@ export function summarizeJob(job) {
 
   if (job.status === "Executando") {
     return `${resolveTypeLabel(job.tipo)} em andamento`;
+  }
+
+  if (job.status === "Cancelado") {
+    return `${resolveTypeLabel(job.tipo)} cancelado`;
   }
 
   if (job.sucesso === true) {

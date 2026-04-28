@@ -63,6 +63,10 @@ export function submitConsultor(nome: string, data_limite: string): Promise<Subm
   return postJson<SubmitResponse>("/jobs/consultor", { nome, data_limite });
 }
 
+export function cancelJobs(): Promise<SubmitResponse> {
+  return postJson<SubmitResponse>("/jobs/cancel", {});
+}
+
 export function loginPainel(login: string, senha: string): Promise<AuthState> {
   return postJson<AuthState>("/auth/login", { login, senha });
 }

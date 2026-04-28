@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
+  cancelJobs,
   fetchAuthState,
   fetchStatus,
   loginPainel,
@@ -10,6 +11,18 @@ import {
 } from "./api";
 import type { JobItem, Notice, StatusState } from "./types";
 import { resolveStatusTone, resolveTypeLabel, summarizeJob } from "./utils/labels.js";
+
+type HistoryTypeFilter = "todos" | "bluepex" | "consultor";
+type HistoryStatusFilter = "todos" | "concluido" | "falha" | "cancelado";
+type TimelineState = "done" | "active" | "pending" | "error" | "cancel";
+
+interface TimelineStep {
+  id: string;
+  title: string;
+  detail: string;
+  at: string;
+  state: TimelineState;
+}
 
 function Field(props: {
   label: string;
@@ -102,15 +115,39 @@ function QueueList({ items }: { items: JobItem[] }) {
   );
 }
 
+function statusLabel(status: string): string {
+  if (status === "Concluido") {
+    return "Concluido";
+  }
+
+  if (status === "Falha") {
+    return "Falha";
+  }
+
+  if (status === "Cancelado") {
+    return "Cancelado";
+  }
+
+  return status || "-";
+}
+
 function HistoryList({ items }: { items: JobItem[] }) {
   if (!items.length) {
-    return <p className="empty">Nenhuma execucao registrada.</p>;
+    return <p className="empty">Nenhum registro encontrado para o filtro atual.</p>;
   }
 
   return (
     <div className="list-grid">
       {items.map((item) => {
         const detalhe = item.resultado?.ip ? `IP ${item.resultado.ip}` : item.mensagem || "-";
+        const statusClass =
+          item.status === "Concluido"
+            ? "success"
+            : item.status === "Cancelado"
+              ? "warning"
+              : item.status === "Falha"
+                ? "danger"
+                : "idle";
 
         return (
           <article className="tile" key={item.id}>
@@ -118,7 +155,9 @@ function HistoryList({ items }: { items: JobItem[] }) {
               <strong>{resolveTypeLabel(item.tipo)}</strong>
               <span>{item.fim_humano || item.inicio_humano || "-"}</span>
             </header>
-            <p>Status: {item.status}</p>
+            <p>
+              <span className={`status-tag ${statusClass}`}>{statusLabel(item.status)}</span>
+            </p>
             <p>Origem: {item.origem || "-"}</p>
             <p>Detalhe: {detalhe}</p>
           </article>
@@ -126,6 +165,126 @@ function HistoryList({ items }: { items: JobItem[] }) {
       })}
     </div>
   );
+}
+
+function Timeline({ job, elapsed }: { job: JobItem | null; elapsed: string }) {
+  const steps = buildTimeline(job);
+
+  if (!job) {
+    return <p className="empty">Sem execucao recente para montar timeline.</p>;
+  }
+
+  return (
+    <div className="timeline-wrap">
+      <div className="timeline-head">
+        <strong>{resolveTypeLabel(job.tipo)}</strong>
+        <span>Duracao: {elapsed}</span>
+      </div>
+      <ol className="timeline-list">
+        {steps.map((step) => (
+          <li className={`timeline-step ${step.state}`} key={step.id}>
+            <span className="dot" />
+            <div>
+              <strong>{step.title}</strong>
+              <p>{step.detail}</p>
+              <small>{step.at}</small>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function buildTimeline(job: JobItem | null): TimelineStep[] {
+  if (!job) {
+    return [];
+  }
+
+  const startedAt = job.inicio_humano || "-";
+  const endedAt = job.fim_humano || "-";
+
+  const inQueue: TimelineStep = {
+    id: "queue",
+    title: "Enfileirado",
+    detail: "Job recebido pelo backend.",
+    at: startedAt,
+    state: "done"
+  };
+
+  const running: TimelineStep = {
+    id: "running",
+    title: "Em execucao",
+    detail: "Automacao rodando.",
+    at: startedAt,
+    state: "pending"
+  };
+
+  const completed: TimelineStep = {
+    id: "final",
+    title: "Finalizacao",
+    detail: job.mensagem || "Processo finalizado.",
+    at: endedAt,
+    state: "pending"
+  };
+
+  if (job.status === "Executando") {
+    running.state = "active";
+    return [inQueue, running, completed];
+  }
+
+  if (job.status === "Concluido") {
+    running.state = "done";
+    completed.state = "done";
+    completed.title = "Concluido";
+    return [inQueue, running, completed];
+  }
+
+  if (job.status === "Falha") {
+    running.state = "done";
+    completed.state = "error";
+    completed.title = "Falha";
+    return [inQueue, running, completed];
+  }
+
+  if (job.status === "Cancelado") {
+    running.state = "done";
+    completed.state = "cancel";
+    completed.title = "Cancelado";
+    return [inQueue, running, completed];
+  }
+
+  inQueue.state = "active";
+  running.state = "pending";
+  return [inQueue, running, completed];
+}
+
+function elapsedFromJob(job: JobItem | null, nowMs: number): string {
+  if (!job || !job.inicio_iso) {
+    return "-";
+  }
+
+  const startMs = Date.parse(job.inicio_iso);
+  if (Number.isNaN(startMs)) {
+    return "-";
+  }
+
+  const endMs = job.fim_iso ? Date.parse(job.fim_iso) : nowMs;
+  const diff = Math.max(0, Math.floor((endMs - startMs) / 1000));
+
+  const hours = Math.floor(diff / 3600);
+  const minutes = Math.floor((diff % 3600) / 60);
+  const seconds = diff % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  return `${seconds}s`;
 }
 
 const EMPTY_STATE: StatusState = {
@@ -143,16 +302,49 @@ export function App() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [isSendingBluepex, setIsSendingBluepex] = useState(false);
   const [isSendingConsultor, setIsSendingConsultor] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
+  const [clockMs, setClockMs] = useState(Date.now());
   const [bluepexNome, setBluepexNome] = useState("");
   const [bluepexMac, setBluepexMac] = useState("");
   const [consultorNome, setConsultorNome] = useState("");
   const [consultorData, setConsultorData] = useState("");
   const [login, setLogin] = useState("");
   const [senha, setSenha] = useState("");
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<HistoryTypeFilter>("todos");
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<HistoryStatusFilter>("todos");
+  const [historyQuery, setHistoryQuery] = useState("");
 
-  const statusLabel = useMemo(() => summarizeJob(state.job_atual), [state.job_atual]);
+  const statusLabelText = useMemo(() => summarizeJob(state.job_atual), [state.job_atual]);
   const statusTone = useMemo(() => resolveStatusTone(state.job_atual), [state.job_atual]);
+
+  const timelineJob = state.job_atual ?? state.historico[0] ?? null;
+  const timelineElapsed = elapsedFromJob(timelineJob, clockMs);
+
+  const filteredHistory = useMemo(() => {
+    const query = historyQuery.trim().toLowerCase();
+
+    return state.historico.filter((item) => {
+      const typeOk = historyTypeFilter === "todos" || item.tipo === historyTypeFilter;
+
+      const statusOk =
+        historyStatusFilter === "todos" ||
+        (historyStatusFilter === "concluido" && item.status === "Concluido") ||
+        (historyStatusFilter === "falha" && item.status === "Falha") ||
+        (historyStatusFilter === "cancelado" && item.status === "Cancelado");
+
+      if (!typeOk || !statusOk) {
+        return false;
+      }
+
+      if (!query) {
+        return true;
+      }
+
+      const haystack = `${item.tipo} ${item.origem} ${item.mensagem} ${JSON.stringify(item.dados)} ${JSON.stringify(item.resultado)}`.toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [state.historico, historyQuery, historyStatusFilter, historyTypeFilter]);
 
   function pushNotice(text: string, level: Notice["level"]) {
     const notice: Notice = {
@@ -206,6 +398,20 @@ export function App() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setClockMs(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -311,6 +517,24 @@ export function App() {
     }
   }
 
+  async function handleCancelAll() {
+    setIsCancelling(true);
+
+    try {
+      const response = await cancelJobs();
+
+      if (response.state) {
+        setState(response.state);
+      }
+
+      pushNotice(response.message || "Cancelamento solicitado.", response.level || "aviso");
+    } catch (error) {
+      pushNotice(error instanceof Error ? error.message : "Falha ao cancelar jobs.", "erro");
+    } finally {
+      setIsCancelling(false);
+    }
+  }
+
   if (booting) {
     return <div className="loading-state">Carregando painel...</div>;
   }
@@ -356,10 +580,18 @@ export function App() {
           <h1>Execucao de automacoes</h1>
         </div>
         <div className="topbar-meta">
-          <span className={`status-pill ${statusTone}`}>{statusLabel}</span>
+          <span className={`status-pill ${statusTone}`}>{statusLabelText}</span>
           <span className="badge">Fila: {state.fila.length}</span>
           <span className="badge">Historico: {state.historico.length}</span>
           <span className="badge">Usuario: {authUser || "-"}</span>
+          <button
+            className="danger-button"
+            type="button"
+            disabled={isCancelling || (!state.ocupado && state.fila.length === 0)}
+            onClick={handleCancelAll}
+          >
+            {isCancelling ? "Cancelando..." : "Cancelar Tudo"}
+          </button>
           <button className="ghost" type="button" onClick={handleLogout}>
             Sair
           </button>
@@ -421,6 +653,14 @@ export function App() {
 
         <article className="panel">
           <header>
+            <h2>Linha do tempo</h2>
+            <p>Acompanhamento em tempo real da execucao atual.</p>
+          </header>
+          <Timeline job={timelineJob} elapsed={timelineElapsed} />
+        </article>
+
+        <article className="panel">
+          <header>
             <h2>Execucao atual</h2>
             <p>Job em andamento e payload enviado.</p>
           </header>
@@ -435,12 +675,45 @@ export function App() {
           <QueueList items={state.fila} />
         </article>
 
-        <article className="panel">
+        <article className="panel panel-wide">
           <header>
             <h2>Historico</h2>
-            <p>Ultimas execucoes.</p>
+            <p>Filtros por tipo, status e busca textual.</p>
           </header>
-          <HistoryList items={state.historico} />
+          <div className="history-filters">
+            <label>
+              <span>Tipo</span>
+              <select
+                value={historyTypeFilter}
+                onChange={(event) => setHistoryTypeFilter(event.target.value as HistoryTypeFilter)}
+              >
+                <option value="todos">Todos</option>
+                <option value="bluepex">BluePex</option>
+                <option value="consultor">Consultor</option>
+              </select>
+            </label>
+            <label>
+              <span>Status</span>
+              <select
+                value={historyStatusFilter}
+                onChange={(event) => setHistoryStatusFilter(event.target.value as HistoryStatusFilter)}
+              >
+                <option value="todos">Todos</option>
+                <option value="concluido">Concluido</option>
+                <option value="falha">Falha</option>
+                <option value="cancelado">Cancelado</option>
+              </select>
+            </label>
+            <label>
+              <span>Busca</span>
+              <input
+                value={historyQuery}
+                onChange={(event) => setHistoryQuery(event.target.value)}
+                placeholder="Nome, MAC, IP, mensagem..."
+              />
+            </label>
+          </div>
+          <HistoryList items={filteredHistory} />
         </article>
       </section>
     </main>
