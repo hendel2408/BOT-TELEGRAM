@@ -518,10 +518,19 @@ export function App() {
   }
 
   async function handleCancelAll() {
+    if (isCancelling) {
+      return;
+    }
+
     setIsCancelling(true);
 
     try {
-      const response = await cancelJobs();
+      const response = await Promise.race([
+        cancelJobs(),
+        new Promise<never>((_, reject) => {
+          window.setTimeout(() => reject(new Error("Timeout ao cancelar. Tente novamente.")), 10000);
+        })
+      ]);
 
       if (response.state) {
         setState(response.state);
@@ -587,10 +596,9 @@ export function App() {
           <button
             className="danger-button"
             type="button"
-            disabled={isCancelling}
             onClick={handleCancelAll}
           >
-            {isCancelling ? "Cancelando..." : "Cancelar Tudo"}
+            {isCancelling ? "Cancelando..." : "Cancelar Tudo Agora"}
           </button>
           <button className="ghost" type="button" onClick={handleLogout}>
             Sair

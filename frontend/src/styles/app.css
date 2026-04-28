@@ -154,6 +154,8 @@ select {
   background: linear-gradient(135deg, #ce4545, #a53232);
   color: #fff;
   font-weight: 600;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .danger-button:disabled {
@@ -190,6 +192,9 @@ select {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: end;
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
 }
 
 .status-pill,

@@ -1,5 +1,7 @@
 import itertools
 import multiprocessing as mp
+import os
+import subprocess
 import threading
 import time
 from collections import deque
@@ -86,6 +88,28 @@ def _job_process_target(tipo, dados, result_queue):
         pass
 
 
+def _kill_process_tree(pid):
+    if not pid:
+        return
+
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+            return
+        except Exception:
+            pass
+
+    try:
+        os.kill(pid, 9)
+    except Exception:
+        pass
+
+
 def _finalizar_job(job, status, sucesso, mensagem, resultado):
     global _CURRENT_JOB
 
@@ -150,6 +174,7 @@ def _worker_loop():
 
                 if cancel_requested:
                     if process.is_alive():
+                        _kill_process_tree(process.pid)
                         process.terminate()
                     process.join(timeout=5)
 
@@ -281,6 +306,10 @@ def cancel_all_jobs():
         if _CURRENT_JOB is not None and _CURRENT_JOB.get("status") == "Executando":
             _CURRENT_JOB["cancel_requested"] = True
             execucao_cancelada = _CURRENT_JOB["id"]
+            process = _CURRENT_JOB.get("process")
+            if process is not None and process.is_alive():
+                _kill_process_tree(process.pid)
+                process.terminate()
 
     for job in cancelados_fila:
         _registrar_historico(job)
