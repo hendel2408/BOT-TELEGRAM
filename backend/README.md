@@ -76,6 +76,7 @@ backend\src\bot_app\assets\gcv\parar_robos.png
 backend\src\bot_app\assets\gcv\monitorar_robos.png
 backend\src\bot_app\assets\gcv\aviso_robos_encerrados.png
 backend\src\bot_app\assets\gcv\terminal_parar_robos.png
+backend\src\bot_app\assets\gcv\fechar_terminal_parar_robos.png
 backend\src\bot_app\assets\gcv\fechar_rdp_normal.png
 backend\src\bot_app\assets\gcv\fechar_rdp_hover.png
 backend\src\bot_app\assets\gcv\confirmacao_desconexao_rdp.png
@@ -84,7 +85,7 @@ backend\src\bot_app\assets\gcv\ok_desconexao_rdp.png
 
 Os templates dos atalhos devem ser recortes limpos feitos dentro da Area de Trabalho Remota maximizada, incluindo o icone e o nome completo do atalho. Nao use recortes com cursor, seta, selecao azul, destaque de hover ou apenas o circulo do icone `CS`, porque os atalhos `Parar Robos` e `Monitorar Robos` usam o mesmo simbolo.
 
-Os templates `aviso_robos_encerrados.png` e `terminal_parar_robos.png` devem ser recortes da barra superior completa de cada janela, incluindo o titulo e o botao `X`. O clique no X e calculado relativamente ao template encontrado.
+Os templates `aviso_robos_encerrados.png` e `terminal_parar_robos.png` devem ser recortes da barra superior completa de cada janela, incluindo o titulo e o botao `X`. O aviso ainda usa clique calculado relativamente ao template encontrado. O terminal usa `terminal_parar_robos.png` para limitar a busca e depois procura visualmente `fechar_terminal_parar_robos.png` no canto superior direito dele.
 
 Os templates `fechar_rdp_normal.png` e `fechar_rdp_hover.png` devem ser recortes do botao `X` da barra superior da RDP. O template `confirmacao_desconexao_rdp.png` deve conter a janela de confirmacao da desconexao, incluindo a area onde fica o botao `OK`. O template `ok_desconexao_rdp.png` deve conter somente o botao `OK` completo.
 
@@ -95,6 +96,7 @@ GCV_PARAR_ROBOS_IMAGE=backend\src\bot_app\assets\gcv\parar_robos.png
 GCV_MONITORAR_ROBOS_IMAGE=backend\src\bot_app\assets\gcv\monitorar_robos.png
 GCV_AVISO_ROBOS_ENCERRADOS_IMAGE=backend\src\bot_app\assets\gcv\aviso_robos_encerrados.png
 GCV_TERMINAL_PARAR_ROBOS_IMAGE=backend\src\bot_app\assets\gcv\terminal_parar_robos.png
+GCV_FECHAR_TERMINAL_PARAR_ROBOS_IMAGE=backend\src\bot_app\assets\gcv\fechar_terminal_parar_robos.png
 GCV_FECHAR_RDP_NORMAL_IMAGE=backend\src\bot_app\assets\gcv\fechar_rdp_normal.png
 GCV_FECHAR_RDP_HOVER_IMAGE=backend\src\bot_app\assets\gcv\fechar_rdp_hover.png
 GCV_CONFIRMACAO_DESCONEXAO_RDP_IMAGE=backend\src\bot_app\assets\gcv\confirmacao_desconexao_rdp.png
@@ -125,8 +127,6 @@ GCV_IMAGE_BASE_RDP_HEIGHT=1080
 GCV_IMAGE_SCALE_VARIATIONS=
 GCV_AVISO_CLOSE_X_RATIO=0.9597989949748744
 GCV_AVISO_CLOSE_Y_RATIO=0.34210526315789475
-GCV_TERMINAL_CLOSE_X_RATIO=0.9754601226993865
-GCV_TERMINAL_CLOSE_Y_RATIO=0.45161290322580644
 ```
 
 O bot precisa rodar na sessao interativa do mesmo usuario que possui a pasta `ROBO GCV` na Area de Trabalho. Nao execute esta automacao como servico isolado na Session 0.
@@ -135,7 +135,7 @@ A funcao GCV controla a tela somente durante a execucao do comando. Mantenha a s
 
 A automacao localiza a janela da conexao remota apos o login e tenta restaura-la/maximiza-la antes do reconhecimento visual. Se o Windows nao confirmar foreground pelo mesmo handle, o fluxo nao e interrompido; a confirmacao passa a ser o template encontrado na captura atual da regiao da RDP. O PyAutoGUI fica reservado para reconhecer e clicar nos elementos graficos dentro da sessao remota.
 
-Apos clicar em `Parar Robos`, a automacao aguarda 10 segundos, procura visualmente a barra do aviso dentro da regiao da Area de Trabalho Remota, clica no X calculado por proporcao dentro do template, aguarda 2 segundos e confirma que o aviso desapareceu. Em seguida, procura visualmente a barra do terminal `Parar Robos`, clica no X calculado do mesmo modo, aguarda 2 segundos e confirma que o terminal desapareceu. Depois disso ela procura visualmente `Monitorar Robos` e da duplo clique para iniciar novamente. O bot nunca clica no botao `OK` nesse fluxo.
+Apos clicar em `Parar Robos`, a automacao aguarda 10 segundos, procura visualmente a barra do aviso dentro da regiao da Area de Trabalho Remota, clica no X calculado por proporcao dentro do template, aguarda 2 segundos e confirma que o aviso desapareceu. Em seguida, procura visualmente a barra do terminal `Parar Robos`, limita a busca ao canto superior direito dele, localiza visualmente o template do botao X, clica no centro encontrado, aguarda 2 segundos e confirma que o terminal desapareceu. Depois disso ela procura visualmente `Monitorar Robos` e da duplo clique para iniciar novamente. O bot nunca clica no botao `OK` nesse fluxo.
 
 Depois de abrir `Monitorar Robos`, a automacao aguarda 5 segundos, move o mouse para o topo central da tela para revelar a barra superior da RDP, procura visualmente o botao `X` somente na faixa superior da tela, clica no template encontrado e confirma a desconexao pelo botao `OK` localizado dentro da janela de confirmacao. Nao usa `Alt+F4`, `WM_CLOSE`, `SC_CLOSE`, `taskkill` nem coordenadas fixas para encerrar o acesso remoto.
 

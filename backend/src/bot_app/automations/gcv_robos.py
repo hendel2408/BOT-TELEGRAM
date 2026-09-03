@@ -81,6 +81,9 @@ DEFAULT_AVISO_ROBOS_ENCERRADOS_IMAGE = (
     GCV_ASSETS_DIR / "aviso_robos_encerrados.png"
 )
 DEFAULT_TERMINAL_PARAR_ROBOS_IMAGE = GCV_ASSETS_DIR / "terminal_parar_robos.png"
+DEFAULT_FECHAR_TERMINAL_PARAR_ROBOS_IMAGE = (
+    GCV_ASSETS_DIR / "fechar_terminal_parar_robos.png"
+)
 DEFAULT_FECHAR_RDP_NORMAL_IMAGE = GCV_ASSETS_DIR / "fechar_rdp_normal.png"
 DEFAULT_FECHAR_RDP_HOVER_IMAGE = GCV_ASSETS_DIR / "fechar_rdp_hover.png"
 DEFAULT_CONFIRMACAO_DESCONEXAO_RDP_IMAGE = (
@@ -89,8 +92,6 @@ DEFAULT_CONFIRMACAO_DESCONEXAO_RDP_IMAGE = (
 DEFAULT_OK_DESCONEXAO_RDP_IMAGE = GCV_ASSETS_DIR / "ok_desconexao_rdp.png"
 AVISO_CLOSE_X_RATIO = float(os.getenv("GCV_AVISO_CLOSE_X_RATIO", "0.9597989949748744"))
 AVISO_CLOSE_Y_RATIO = float(os.getenv("GCV_AVISO_CLOSE_Y_RATIO", "0.34210526315789475"))
-TERMINAL_CLOSE_X_RATIO = float(os.getenv("GCV_TERMINAL_CLOSE_X_RATIO", "0.9754601226993865"))
-TERMINAL_CLOSE_Y_RATIO = float(os.getenv("GCV_TERMINAL_CLOSE_Y_RATIO", "0.45161290322580644"))
 
 _RESTART_LOCK = threading.Lock()
 GCV_DEPENDENCIES = ("pyautogui", "pywinauto", "cv2")
@@ -134,6 +135,7 @@ class GcvConfig:
     monitorar_icon_images: List[Path]
     aviso_robos_encerrados_images: List[Path]
     terminal_parar_robos_images: List[Path]
+    fechar_terminal_parar_robos_images: List[Path]
     fechar_rdp_normal_images: List[Path]
     fechar_rdp_hover_images: List[Path]
     confirmacao_desconexao_rdp_images: List[Path]
@@ -261,6 +263,7 @@ def diagnosticar_gcv():
             and templates["monitorar_robos"]["ok"]
             and templates["aviso_robos_encerrados"]["ok"]
             and templates["terminal_parar_robos"]["ok"]
+            and templates["fechar_terminal_parar_robos"]["ok"]
             and templates["fechar_rdp_normal"]["ok"]
             and templates["fechar_rdp_hover"]["ok"]
             and templates["confirmacao_desconexao_rdp"]["ok"]
@@ -326,19 +329,7 @@ def _executar_reinicio(notificar, state):
         config.aviso_robos_encerrados_images,
         "aviso de robôs encerrados",
     )
-    _fechar_template_na_rdp(
-        rdp_window,
-        config.terminal_parar_robos_images,
-        "terminal Parar Robôs",
-        TERMINAL_CLOSE_X_RATIO,
-        TERMINAL_CLOSE_Y_RATIO,
-    )
-    time.sleep(2)
-    _confirmar_template_sumiu_na_rdp(
-        rdp_window,
-        config.terminal_parar_robos_images,
-        "terminal Parar Robôs",
-    )
+    _fechar_terminal_parar_robos_na_rdp(rdp_window, config)
     _log("Procurando Monitorar Robôs.")
 
     monitorar_match = _aguardar_icone_monitorar(
@@ -370,6 +361,7 @@ def _carregar_configuracao():
     (
         aviso_robos_encerrados_images,
         terminal_parar_robos_images,
+        fechar_terminal_parar_robos_images,
     ) = _resolver_templates_pos_parar()
     (
         fechar_rdp_normal_images,
@@ -385,6 +377,7 @@ def _carregar_configuracao():
         monitorar_icon_images=monitorar_icon_images,
         aviso_robos_encerrados_images=aviso_robos_encerrados_images,
         terminal_parar_robos_images=terminal_parar_robos_images,
+        fechar_terminal_parar_robos_images=fechar_terminal_parar_robos_images,
         fechar_rdp_normal_images=fechar_rdp_normal_images,
         fechar_rdp_hover_images=fechar_rdp_hover_images,
         confirmacao_desconexao_rdp_images=confirmacao_desconexao_rdp_images,
@@ -413,6 +406,11 @@ def _diagnosticar_templates():
             "Terminal Parar Robôs",
             "GCV_TERMINAL_PARAR_ROBOS_IMAGE",
             DEFAULT_TERMINAL_PARAR_ROBOS_IMAGE,
+        ),
+        "fechar_terminal_parar_robos": _diagnosticar_template(
+            "Botao X terminal Parar Robos",
+            "GCV_FECHAR_TERMINAL_PARAR_ROBOS_IMAGE",
+            DEFAULT_FECHAR_TERMINAL_PARAR_ROBOS_IMAGE,
         ),
         "fechar_rdp_normal": _diagnosticar_template(
             "Fechar RDP normal",
@@ -513,6 +511,12 @@ def _resolver_templates_pos_parar():
             "GCV_TERMINAL_PARAR_ROBOS_IMAGE",
             DEFAULT_TERMINAL_PARAR_ROBOS_IMAGE,
         ),
+        (
+            "fechar_terminal_parar_robos",
+            "Botao X terminal Parar Robos",
+            "GCV_FECHAR_TERMINAL_PARAR_ROBOS_IMAGE",
+            DEFAULT_FECHAR_TERMINAL_PARAR_ROBOS_IMAGE,
+        ),
     ):
         try:
             resultados[chave] = _resolver_template_padrao_ou_env(
@@ -532,6 +536,7 @@ def _resolver_templates_pos_parar():
     return (
         resultados["aviso_robos_encerrados"],
         resultados["terminal_parar_robos"],
+        resultados["fechar_terminal_parar_robos"],
     )
 
 
@@ -1232,6 +1237,132 @@ def _fechar_template_na_rdp(rdp_window, imagens, descricao, x_ratio, y_ratio):
     _log(f"Clique no X do {descricao} executado.")
 
 
+def _fechar_terminal_parar_robos_na_rdp(rdp_window, config):
+    terminal_match = _aguardar_template_na_rdp(
+        rdp_window,
+        config.terminal_parar_robos_images,
+        STOP_VISUAL_TIMEOUT_S,
+        "terminal Parar Robôs",
+    )
+    pyautogui = _pyautogui()
+
+    for tentativa in (1, 2):
+        _log("Procurando botão X do terminal Parar Robôs.")
+        x_match = _aguardar_botao_x_terminal_parar_robos(
+            rdp_window,
+            terminal_match,
+            config.fechar_terminal_parar_robos_images,
+            STOP_VISUAL_TIMEOUT_S,
+        )
+        _log(
+            "Botão X do terminal Parar Robôs localizado: "
+            f"{_formatar_match(x_match)}."
+        )
+        x, y = x_match.center
+        _log(f"Movendo mouse para o X do terminal: x={x}, y={y}.")
+        pyautogui.moveTo(x=x, y=y)
+        time.sleep(0.4)
+        _log(f"Tentativa {tentativa} de fechar terminal Parar Robôs.")
+        pyautogui.click(x=x, y=y)
+        time.sleep(2)
+
+        terminal_match = _template_visivel_na_rdp(
+            rdp_window,
+            config.terminal_parar_robos_images,
+        )
+        if not terminal_match:
+            _log("Template desapareceu da RDP: terminal Parar Robôs.")
+            return
+
+        if tentativa == 1:
+            _log("Terminal ainda visível após tentativa 1; tentando novamente.")
+
+    raise GcvAutomationError(
+        "Nao foi possivel confirmar o fechamento de terminal Parar Robôs.",
+        code="template_nao_fechou",
+        screenshot=True,
+    )
+
+
+def _aguardar_botao_x_terminal_parar_robos(
+    rdp_window,
+    terminal_match,
+    imagens,
+    timeout_s,
+):
+    deadline = time.monotonic() + timeout_s
+    hwnd = _obter_hwnd_rdp(rdp_window)
+    left, top, width, height = _regiao_busca_x_terminal_parar_robos(
+        hwnd,
+        terminal_match,
+    )
+    _log(
+        "Região de busca do X do terminal Parar Robôs: "
+        f"left={left}, top={top}, width={width}, height={height}."
+    )
+
+    while time.monotonic() < deadline:
+        screenshot = _pyautogui().screenshot(region=(left, top, width, height))
+        match = _localizar_imagem(screenshot, (left, top), imagens)
+        if match:
+            _log_match_localizado("botão X do terminal Parar Robôs", match)
+            return match
+        time.sleep(VISUAL_POLL_INTERVAL_S)
+
+    raise GcvAutomationError(
+        _mensagem_template_nao_localizado(
+            "botão X do terminal Parar Robôs",
+            imagens,
+        ),
+        code="x_terminal_nao_localizado",
+        screenshot=True,
+    )
+
+
+def _regiao_busca_x_terminal_parar_robos(hwnd, terminal_match):
+    rdp_left, rdp_top, rdp_width, rdp_height = _retangulo_hwnd(hwnd)
+    return _calcular_regiao_busca_x_terminal_parar_robos(
+        terminal_match,
+        rdp_left,
+        rdp_top,
+        rdp_width,
+        rdp_height,
+    )
+
+
+def _calcular_regiao_busca_x_terminal_parar_robos(
+    terminal_match,
+    rdp_left,
+    rdp_top,
+    rdp_width,
+    rdp_height,
+):
+    rdp_right = rdp_left + rdp_width
+    rdp_bottom = rdp_top + rdp_height
+    search_width = max(
+        80,
+        min(terminal_match.width, int(round(terminal_match.width * 0.24))),
+    )
+    search_height = max(
+        terminal_match.height,
+        int(round(terminal_match.height * 1.5)),
+    )
+
+    left = max(rdp_left, terminal_match.right - search_width)
+    top = max(rdp_top, terminal_match.top)
+    right = min(rdp_right, terminal_match.right)
+    bottom = min(rdp_bottom, terminal_match.top + search_height)
+
+    if right <= left or bottom <= top:
+        raise GcvAutomationError(
+            "Nao foi possivel calcular a regiao de busca do X do terminal Parar Robôs.",
+            code="x_terminal_regiao",
+            screenshot=True,
+        )
+
+    return int(left), int(top), int(right - left), int(bottom - top)
+
+
 def _aguardar_template_na_rdp(rdp_window, imagens, timeout_s, descricao):
     deadline = time.monotonic() + timeout_s
     hwnd = _obter_hwnd_rdp(rdp_window)
@@ -1253,15 +1384,19 @@ def _aguardar_template_na_rdp(rdp_window, imagens, timeout_s, descricao):
 
 
 def _confirmar_template_sumiu_na_rdp(rdp_window, imagens, descricao):
-    hwnd = _obter_hwnd_rdp(rdp_window)
-    screenshot, origem = _screenshot_janela_por_hwnd(hwnd)
-    if _localizar_imagem(screenshot, origem, imagens):
+    if _template_visivel_na_rdp(rdp_window, imagens):
         raise GcvAutomationError(
             f"Nao foi possivel confirmar o fechamento de {descricao}.",
             code="template_nao_fechou",
             screenshot=True,
         )
     _log(f"Template desapareceu da RDP: {descricao}.")
+
+
+def _template_visivel_na_rdp(rdp_window, imagens):
+    hwnd = _obter_hwnd_rdp(rdp_window)
+    screenshot, origem = _screenshot_janela_por_hwnd(hwnd)
+    return _localizar_imagem(screenshot, origem, imagens)
 
 
 def _formatar_match(match):

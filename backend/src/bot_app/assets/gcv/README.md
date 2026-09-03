@@ -6,6 +6,7 @@ Coloque nesta pasta os templates padrao usados pela automacao:
 - `monitorar_robos.png`
 - `aviso_robos_encerrados.png`
 - `terminal_parar_robos.png`
+- `fechar_terminal_parar_robos.png`
 - `fechar_rdp_normal.png`
 - `fechar_rdp_hover.png`
 - `confirmacao_desconexao_rdp.png`
@@ -19,6 +20,10 @@ Os templates `aviso_robos_encerrados.png` e `terminal_parar_robos.png` devem ser
 recortes da barra superior completa de cada janela, incluindo o titulo e o botao
 `X`.
 
+O template `fechar_terminal_parar_robos.png` deve conter somente o botao `X` do
+terminal `Parar Robos`. Ele e usado depois que a barra do terminal ja foi
+localizada, com busca restrita ao canto superior direito dessa janela.
+
 Os templates `fechar_rdp_normal.png` e `fechar_rdp_hover.png` devem ser recortes
 do botao `X` da barra superior da RDP. O template
 `confirmacao_desconexao_rdp.png` deve conter a janela de confirmacao da
@@ -27,7 +32,7 @@ desconexao, incluindo a area onde fica o botao `OK`. O template
 
 As variaveis `GCV_PARAR_ROBOS_IMAGE`, `GCV_MONITORAR_ROBOS_IMAGE`,
 `GCV_AVISO_ROBOS_ENCERRADOS_IMAGE`, `GCV_TERMINAL_PARAR_ROBOS_IMAGE`,
-`GCV_FECHAR_RDP_NORMAL_IMAGE`, `GCV_FECHAR_RDP_HOVER_IMAGE`,
-`GCV_CONFIRMACAO_DESCONEXAO_RDP_IMAGE` e `GCV_OK_DESCONEXAO_RDP_IMAGE` no
-`backend/.env` sao opcionais e servem apenas para substituir estes arquivos
-padrao.
+`GCV_FECHAR_TERMINAL_PARAR_ROBOS_IMAGE`, `GCV_FECHAR_RDP_NORMAL_IMAGE`,
+`GCV_FECHAR_RDP_HOVER_IMAGE`, `GCV_CONFIRMACAO_DESCONEXAO_RDP_IMAGE` e
+`GCV_OK_DESCONEXAO_RDP_IMAGE` no `backend/.env` sao opcionais e servem apenas
+para substituir estes arquivos padrao.
