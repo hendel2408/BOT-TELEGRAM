@@ -5,9 +5,15 @@ from flask import Flask, jsonify, request, send_from_directory, session
 
 from bot_app.automations.bluepex import liberar_visitante
 from bot_app.automations.consultor_cs import liberar_consultor
+from bot_app.automations.gcv_robos import reiniciar_robos_gcv
 from bot_app.common.paths import FRONTEND_DIST_DIR
 from bot_app.services.history_store import fetch_recent_history, init_history_store
-from bot_app.services.job_queue import snapshot_queue, submit_job
+from bot_app.services.job_queue import (
+    snapshot_queue,
+    submit_job,
+    submit_job_once,
+    update_current_job_message,
+)
 
 
 APP_HOST = os.getenv("PAINEL_HOST", "0.0.0.0")
@@ -110,6 +116,8 @@ def tipo_legivel(tipo):
         return "BluePex"
     if tipo == "consultor":
         return "Consultor"
+    if tipo == "gcv_reinicio":
+        return "Robos GCV"
     return tipo
 
 
@@ -184,6 +192,18 @@ def response_payload(ticket, tipo, nome):
     )
 
 
+def response_payload_gcv(ticket):
+    return jsonify(
+        {
+            "ok": True,
+            "message": "Reinício GCV enfileirado com sucesso.",
+            "level": "ok" if ticket["position"] == 0 else "aviso",
+            "ticket": {"job_id": ticket["job_id"], "position": ticket["position"]},
+            "state": snapshot_estado(),
+        }
+    )
+
+
 @app.get("/")
 @app.get("/<path:path>")
 def index(path="index.html"):
@@ -244,6 +264,36 @@ def iniciar_consultor():
     )
 
     return response_payload(ticket, "consultor", nome)
+
+
+@app.post("/api/jobs/gcv-reinicio")
+def iniciar_gcv_reinicio():
+    usuario = session.get(SESSION_USER_KEY) or "painel"
+
+    def registrar_andamento(mensagem):
+        update_current_job_message("gcv_reinicio", mensagem)
+
+    ticket = submit_job_once(
+        "gcv_reinicio",
+        "painel_web",
+        {"usuario": usuario},
+        lambda: reiniciar_robos_gcv(registrar_andamento),
+    )
+
+    if not ticket["accepted"]:
+        return (
+            jsonify(
+                {
+                    "ok": False,
+                    "message": "Já existe um reinício dos robôs GCV em andamento.",
+                    "level": "aviso",
+                    "state": snapshot_estado(),
+                }
+            ),
+            409,
+        )
+
+    return response_payload_gcv(ticket)
 
 
 @app.get("/api/status")

@@ -1,4 +1,10 @@
-export type JobType = "bluepex" | "consultor" | string;
+export type JobType = "bluepex" | "consultor" | "gcv_reinicio" | string;
+
+export interface JobEvent {
+  mensagem: string;
+  momento_iso?: string | null;
+  momento_humano?: string | null;
+}
 
 export interface JobData {
   [key: string]: string | number | boolean | null | undefined;
@@ -8,7 +14,8 @@ export interface JobResult {
   sucesso?: boolean;
   mensagem?: string;
   ip?: string | null;
-  [key: string]: string | number | boolean | null | undefined;
+  eventos?: JobEvent[];
+  [key: string]: unknown;
 }
 
 export interface JobItem {
@@ -20,6 +27,7 @@ export interface JobItem {
   mensagem: string;
   dados: JobData;
   resultado: JobResult;
+  eventos?: JobEvent[];
   inicio_iso?: string | null;
   inicio_humano?: string | null;
   fim_iso?: string | null;

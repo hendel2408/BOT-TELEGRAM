@@ -1,21 +1,24 @@
 @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
 
 :root {
-  --bg-1: #f3f6ec;
-  --bg-2: #deebe9;
-  --ink: #142029;
-  --muted: #51616f;
-  --card: #fcfdfb;
-  --line: rgba(20, 32, 41, 0.14);
-  --brand: #0a8f7c;
-  --brand-strong: #076a5c;
-  --warn: #cc7a21;
+  --bg-1: #eef3f1;
+  --bg-2: #e2ece9;
+  --ink: #10202a;
+  --muted: #5b6874;
+  --card: #ffffff;
+  --line: rgba(16, 32, 42, 0.12);
+  --line-strong: rgba(16, 32, 42, 0.2);
+  --brand: #087f6f;
+  --brand-strong: #066555;
+  --brand-soft: rgba(8, 127, 111, 0.1);
+  --warn: #a76516;
   --danger: #b23c3c;
-  --ok: #2c8f4f;
-  --radius-xl: 28px;
-  --radius-lg: 20px;
-  --radius-md: 14px;
-  --shadow: 0 26px 70px rgba(9, 37, 45, 0.16);
+  --ok: #247c48;
+  --radius-xl: 16px;
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --shadow: 0 14px 36px rgba(16, 32, 42, 0.1);
+  --shadow-soft: 0 8px 22px rgba(16, 32, 42, 0.07);
 }
 
 * {
@@ -32,10 +35,7 @@ body {
   margin: 0;
   color: var(--ink);
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  background:
-    radial-gradient(circle at 8% 10%, rgba(10, 143, 124, 0.2), transparent 35%),
-    radial-gradient(circle at 100% 0%, rgba(44, 143, 79, 0.12), transparent 42%),
-    linear-gradient(140deg, var(--bg-1), var(--bg-2));
+  background: linear-gradient(180deg, var(--bg-1), var(--bg-2));
 }
 
 h1,
@@ -73,15 +73,15 @@ select {
   width: min(480px, 100%);
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
-  padding: 28px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(248, 252, 250, 0.9));
+  padding: 24px;
+  background: var(--card);
   box-shadow: var(--shadow);
 }
 
 .auth-card h1 {
   margin: 8px 0 10px;
-  font-size: clamp(1.8rem, 3vw, 2.3rem);
-  line-height: 1;
+  font-size: 1.9rem;
+  line-height: 1.08;
 }
 
 .auth-card p {
@@ -93,7 +93,7 @@ select {
   margin: 0;
   font-size: 0.76rem;
   text-transform: uppercase;
-  letter-spacing: 0.19em;
+  letter-spacing: 0.14em;
   color: var(--brand);
 }
 
@@ -110,14 +110,15 @@ select {
 
 .field span {
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.86rem;
+  font-weight: 500;
 }
 
 .field input {
-  border: 1px solid rgba(20, 32, 41, 0.2);
-  border-radius: 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
   background: white;
-  padding: 12px 14px;
+  padding: 11px 12px;
 }
 
 .field input:focus {
@@ -128,15 +129,20 @@ select {
 .cta,
 .ghost {
   border: 0;
-  border-radius: 999px;
-  padding: 12px 18px;
+  border-radius: var(--radius-md);
+  min-height: 42px;
+  padding: 10px 16px;
   cursor: pointer;
 }
 
 .cta {
-  background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+  background: var(--brand);
   color: white;
   font-weight: 600;
+}
+
+.cta:hover:not(:disabled) {
+  background: var(--brand-strong);
 }
 
 .cta:disabled {
@@ -145,32 +151,36 @@ select {
 }
 
 .ghost {
-  background: rgba(20, 32, 41, 0.08);
+  background: rgba(16, 32, 42, 0.08);
   color: var(--ink);
 }
 
 .dashboard-shell {
-  width: min(1260px, calc(100% - 30px));
+  width: min(1480px, calc(100% - 32px));
   margin: 0 auto;
-  padding: 26px 0 36px;
+  padding: 18px 0 28px;
 }
 
 .topbar {
   border: 1px solid var(--line);
   border-radius: var(--radius-xl);
-  padding: 24px;
-  background: linear-gradient(130deg, rgba(255, 255, 255, 0.96), rgba(245, 251, 249, 0.88));
-  box-shadow: var(--shadow);
+  padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow-soft);
   display: flex;
   justify-content: space-between;
-  gap: 20px;
-  align-items: start;
+  gap: 18px;
+  align-items: center;
+}
+
+.topbar-title {
+  min-width: 280px;
 }
 
 .topbar h1 {
-  margin: 8px 0 0;
-  font-size: clamp(1.7rem, 3.6vw, 2.8rem);
-  line-height: 0.98;
+  margin: 6px 0 0;
+  font-size: clamp(1.55rem, 2.4vw, 2.15rem);
+  line-height: 1.08;
 }
 
 .topbar-meta {
@@ -182,11 +192,11 @@ select {
 
 .status-pill,
 .badge {
-  border-radius: 999px;
-  padding: 9px 13px;
-  border: 1px solid rgba(20, 32, 41, 0.14);
-  background: rgba(255, 255, 255, 0.8);
-  font-size: 0.88rem;
+  border-radius: var(--radius-md);
+  padding: 8px 11px;
+  border: 1px solid var(--line);
+  background: #f9fbfa;
+  font-size: 0.86rem;
 }
 
 .status-pill.idle {
@@ -237,18 +247,18 @@ select {
 }
 
 .panel-grid {
-  margin-top: 18px;
+  margin-top: 16px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
 }
 
 .panel {
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--card);
-  box-shadow: var(--shadow);
-  padding: 20px;
+  box-shadow: var(--shadow-soft);
+  padding: 18px;
 }
 
 .panel-wide {
@@ -257,32 +267,97 @@ select {
 
 .panel > header h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.08rem;
 }
 
 .panel > header p {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
 }
 
-.two-col {
+.job-card-grid {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(3, minmax(260px, 1fr));
+  gap: 12px;
 }
 
 .job-form {
-  border: 1px dashed rgba(20, 32, 41, 0.2);
+  border: 1px solid var(--line);
   border-radius: var(--radius-md);
   padding: 14px;
   display: grid;
-  gap: 12px;
+  gap: 14px;
+  background: #fbfdfc;
 }
 
 .job-form h3 {
   margin: 0;
+  font-size: 1.02rem;
+}
+
+.job-form p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.automation-card {
+  grid-template-rows: auto 1fr auto;
+  min-height: 224px;
+}
+
+.automation-fields {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.automation-card .cta {
+  width: 100%;
+}
+
+.gcv-card {
+  background: linear-gradient(180deg, #fbfdfc, #f4faf8);
+  border-color: rgba(8, 127, 111, 0.22);
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(20, 32, 41, 0.42);
+}
+
+.confirm-dialog {
+  width: min(460px, 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  padding: 22px;
+}
+
+.confirm-dialog h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.confirm-dialog p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: end;
+  gap: 10px;
+  margin-top: 20px;
 }
 
 .history-filters {
@@ -304,8 +379,8 @@ select {
 
 .history-filters input,
 .history-filters select {
-  border: 1px solid rgba(20, 32, 41, 0.2);
-  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
   padding: 10px 11px;
   background: #fff;
 }
@@ -323,8 +398,8 @@ select {
 
 .tile {
   border: 1px solid var(--line);
-  border-radius: 12px;
-  background: white;
+  border-radius: var(--radius-md);
+  background: #fbfdfc;
   padding: 12px;
 }
 
@@ -350,7 +425,7 @@ select {
 .status-tag {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-md);
   padding: 5px 10px;
   font-size: 0.82rem;
   font-weight: 600;
@@ -394,10 +469,10 @@ select {
 
 .timeline-list {
   list-style: none;
-  margin: 14px 0 0;
+  margin: 12px 0 0;
   padding: 0;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .timeline-step {
@@ -405,10 +480,10 @@ select {
   grid-template-columns: 14px 1fr;
   gap: 10px;
   align-items: start;
-  padding: 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(20, 32, 41, 0.1);
-  background: #fff;
+  padding: 9px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--line);
+  background: #fbfdfc;
 }
 
 .timeline-step .dot {
@@ -452,12 +527,26 @@ select {
   color: var(--muted);
 }
 
-@media (max-width: 1120px) {
+@media (max-width: 1180px) {
+  .job-card-grid {
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+  }
+}
+
+@media (max-width: 980px) {
   .panel-grid,
-  .two-col,
   .detail-list,
   .history-filters {
     grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    align-items: start;
+    flex-direction: column;
+  }
+
+  .topbar-meta {
+    justify-content: start;
   }
 }
 
@@ -474,5 +563,18 @@ select {
 
   .panel {
     padding: 16px;
+  }
+
+  .job-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dialog-actions {
+    flex-direction: column-reverse;
+  }
+
+  .dialog-actions .cta,
+  .dialog-actions .ghost {
+    width: 100%;
   }
 }

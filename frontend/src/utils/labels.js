@@ -1,6 +1,7 @@
 export const typeLabels = {
   bluepex: "BluePex",
-  consultor: "Consultor"
+  consultor: "Consultor",
+  gcv_reinicio: "Robôs GCV"
 };
 
 export function resolveTypeLabel(type) {
@@ -37,7 +38,7 @@ export function summarizeJob(job) {
   }
 
   if (job.sucesso === true) {
-    return `${resolveTypeLabel(job.tipo)} concluido`;
+    return `${resolveTypeLabel(job.tipo)} concluído`;
   }
 
   if (job.sucesso === false) {
