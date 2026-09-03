@@ -26,6 +26,8 @@ def _public_job(job):
     if not job:
         return None
 
+    eventos = list(job.get("eventos", []))
+
     return {
         "id": job["id"],
         "tipo": job["tipo"],
@@ -35,6 +37,7 @@ def _public_job(job):
         "mensagem": job.get("mensagem"),
         "dados": dict(job.get("dados", {})),
         "resultado": dict(job.get("resultado", {})),
+        "eventos": eventos,
         "inicio_iso": job.get("inicio_iso"),
         "inicio_humano": job.get("inicio_humano"),
         "fim_iso": job.get("fim_iso"),
@@ -71,6 +74,11 @@ def _worker_loop():
             mensagem = resultado["mensagem"]
 
         with _COND:
+            eventos = list(job.get("eventos", []))
+            if eventos:
+                resultado = dict(resultado)
+                resultado["eventos"] = eventos
+
             job["status"] = "Concluido" if sucesso else "Falha"
             job["sucesso"] = sucesso
             job["mensagem"] = mensagem
@@ -99,33 +107,98 @@ def submit_job(tipo, origem, dados, runner):
     init_job_queue()
 
     with _COND:
-        job = {
-            "id": next(_JOB_IDS),
-            "tipo": tipo,
-            "origem": origem,
-            "status": "Na fila",
-            "sucesso": None,
-            "mensagem": "Aguardando execucao.",
-            "dados": dados,
-            "resultado": {},
-            "inicio_iso": _agora_iso(),
-            "inicio_humano": _agora_humano(),
-            "fim_iso": None,
-            "fim_humano": None,
-            "runner": runner,
-            "event": threading.Event(),
-        }
-
-        position = len(_PENDING_JOBS) + (1 if _CURRENT_JOB else 0)
-        _PENDING_JOBS.append(job)
-        _COND.notify()
+        job, position = _enqueue_job_locked(tipo, origem, dados, runner)
 
     return {
+        "accepted": True,
         "job_id": job["id"],
         "position": position,
         "event": job["event"],
         "job": job,
     }
+
+
+def submit_job_once(tipo, origem, dados, runner):
+    init_job_queue()
+
+    with _COND:
+        if _job_tipo_em_andamento_locked(tipo):
+            return {
+                "accepted": False,
+                "job_id": None,
+                "position": None,
+                "event": None,
+                "job": None,
+            }
+
+        job, position = _enqueue_job_locked(tipo, origem, dados, runner)
+
+    return {
+        "accepted": True,
+        "job_id": job["id"],
+        "position": position,
+        "event": job["event"],
+        "job": job,
+    }
+
+
+def update_current_job_message(tipo, mensagem):
+    mensagem = str(mensagem or "").strip()
+    if not mensagem:
+        return False
+
+    evento = {
+        "mensagem": mensagem,
+        "momento_iso": _agora_iso(),
+        "momento_humano": _agora_humano(),
+    }
+
+    with _COND:
+        if not _CURRENT_JOB:
+            return False
+
+        if tipo and _CURRENT_JOB["tipo"] != tipo:
+            return False
+
+        _CURRENT_JOB["mensagem"] = mensagem
+        _CURRENT_JOB.setdefault("eventos", []).append(evento)
+        _CURRENT_JOB.setdefault("resultado", {})["eventos"] = list(
+            _CURRENT_JOB["eventos"]
+        )
+        return True
+
+
+def _job_tipo_em_andamento_locked(tipo):
+    if _CURRENT_JOB and _CURRENT_JOB["tipo"] == tipo:
+        return True
+
+    return any(job["tipo"] == tipo for job in _PENDING_JOBS)
+
+
+def _enqueue_job_locked(tipo, origem, dados, runner):
+    job = {
+        "id": next(_JOB_IDS),
+        "tipo": tipo,
+        "origem": origem,
+        "status": "Na fila",
+        "sucesso": None,
+        "mensagem": "Aguardando execucao.",
+        "dados": dados,
+        "resultado": {},
+        "eventos": [],
+        "inicio_iso": _agora_iso(),
+        "inicio_humano": _agora_humano(),
+        "fim_iso": None,
+        "fim_humano": None,
+        "runner": runner,
+        "event": threading.Event(),
+    }
+
+    position = len(_PENDING_JOBS) + (1 if _CURRENT_JOB else 0)
+    _PENDING_JOBS.append(job)
+    _COND.notify()
+
+    return job, position
 
 
 def wait_for_job(ticket):

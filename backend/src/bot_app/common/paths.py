@@ -9,9 +9,11 @@ DATA_DIR = BACKEND_DIR / "data"
 ENV_PATH = BACKEND_DIR / ".env"
 HISTORICO_DB_PATH = DATA_DIR / "historico.db"
 IP_LIVRE_PATH = DATA_DIR / "ip_livre.txt"
+GCV_PRINTS_DIR = DATA_DIR / "prints_gcv"
 FRONTEND_DIR = REPO_ROOT / "frontend"
 FRONTEND_DIST_DIR = FRONTEND_DIR / "dist"
 
 
 def ensure_runtime_dirs():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+    GCV_PRINTS_DIR.mkdir(parents=True, exist_ok=True)

@@ -6,12 +6,13 @@ import {
   loginPainel,
   logoutPainel,
   submitBluepex,
-  submitConsultor
+  submitConsultor,
+  submitGcvReinicio
 } from "./api";
-import type { JobItem, Notice, StatusState } from "./types";
+import type { JobEvent, JobItem, Notice, StatusState } from "./types";
 import { resolveStatusTone, resolveTypeLabel, summarizeJob } from "./utils/labels.js";
 
-type HistoryTypeFilter = "todos" | "bluepex" | "consultor";
+type HistoryTypeFilter = "todos" | "bluepex" | "consultor" | "gcv_reinicio";
 type HistoryStatusFilter = "todos" | "concluido" | "falha";
 type TimelineState = "done" | "active" | "pending" | "error";
 
@@ -64,9 +65,44 @@ function NoticeStack({ notices }: { notices: Notice[] }) {
   );
 }
 
+function ConfirmDialog(props: {
+  open: boolean;
+  sending: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const { open, sending, onCancel, onConfirm } = props;
+
+  if (!open) {
+    return null;
+  }
+
+  return (
+    <div className="dialog-backdrop" role="presentation">
+      <section
+        aria-labelledby="gcv-confirm-title"
+        aria-modal="true"
+        className="confirm-dialog"
+        role="dialog"
+      >
+        <h2 id="gcv-confirm-title">Reiniciar robôs GCV?</h2>
+        <p>Os robôs serão interrompidos temporariamente e iniciados novamente.</p>
+        <div className="dialog-actions">
+          <button className="ghost" disabled={sending} onClick={onCancel} type="button">
+            Cancelar
+          </button>
+          <button className="cta" disabled={sending} onClick={onConfirm} type="button">
+            {sending ? "Enfileirando..." : "Reiniciar robôs"}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 function JobDetails({ job }: { job: JobItem | null }) {
   if (!job) {
-    return <p className="empty">Nenhuma automacao em execucao.</p>;
+    return <p className="empty">Nenhuma automação em execução.</p>;
   }
 
   const entries: Array<[string, string]> = [
@@ -104,7 +140,7 @@ function QueueList({ items }: { items: JobItem[] }) {
         <article className="tile" key={item.id}>
           <header>
             <strong>{resolveTypeLabel(item.tipo)}</strong>
-            <span className="badge">Posicao {index + 1}</span>
+            <span className="badge">Posição {index + 1}</span>
           </header>
           <p>Origem: {item.origem || "-"}</p>
           <p>Dados: {JSON.stringify(item.dados || {})}</p>
@@ -116,7 +152,7 @@ function QueueList({ items }: { items: JobItem[] }) {
 
 function statusLabel(status: string): string {
   if (status === "Concluido") {
-    return "Concluido";
+    return "Concluído";
   }
 
   if (status === "Falha") {
@@ -164,14 +200,14 @@ function Timeline({ job, elapsed }: { job: JobItem | null; elapsed: string }) {
   const steps = buildTimeline(job);
 
   if (!job) {
-    return <p className="empty">Sem execucao recente para montar timeline.</p>;
+    return <p className="empty">Sem execução recente.</p>;
   }
 
   return (
     <div className="timeline-wrap">
       <div className="timeline-head">
         <strong>{resolveTypeLabel(job.tipo)}</strong>
-        <span>Duracao: {elapsed}</span>
+        <span>Duração: {elapsed}</span>
       </div>
       <ol className="timeline-list">
         {steps.map((step) => (
@@ -196,6 +232,7 @@ function buildTimeline(job: JobItem | null): TimelineStep[] {
 
   const startedAt = job.inicio_humano || "-";
   const endedAt = job.fim_humano || "-";
+  const progressEvents = getJobEvents(job);
 
   const inQueue: TimelineStep = {
     id: "queue",
@@ -207,42 +244,66 @@ function buildTimeline(job: JobItem | null): TimelineStep[] {
 
   const running: TimelineStep = {
     id: "running",
-    title: "Em execucao",
-    detail: "Automacao rodando.",
+    title: "Em execução",
+    detail: job.mensagem || "Automação rodando.",
     at: startedAt,
     state: "pending"
   };
 
   const completed: TimelineStep = {
     id: "final",
-    title: "Finalizacao",
+    title: "Finalização",
     detail: job.mensagem || "Processo finalizado.",
     at: endedAt,
     state: "pending"
   };
 
+  const progressSteps = progressEvents.map((event, index) => ({
+    id: `progress-${index}`,
+    title: "Andamento",
+    detail: event.mensagem,
+    at: event.momento_humano || startedAt,
+    state: "done" as TimelineState
+  }));
+
   if (job.status === "Executando") {
-    running.state = "active";
-    return [inQueue, running, completed];
+    running.state = progressSteps.length ? "done" : "active";
+    if (progressSteps.length) {
+      progressSteps[progressSteps.length - 1].state = "active";
+    }
+    return [inQueue, running, ...progressSteps, completed];
   }
 
   if (job.status === "Concluido") {
     running.state = "done";
     completed.state = "done";
-    completed.title = "Concluido";
-    return [inQueue, running, completed];
+    completed.title = "Concluído";
+    return [inQueue, running, ...progressSteps, completed];
   }
 
   if (job.status === "Falha") {
     running.state = "done";
     completed.state = "error";
     completed.title = "Falha";
-    return [inQueue, running, completed];
+    return [inQueue, running, ...progressSteps, completed];
   }
 
   inQueue.state = "active";
   running.state = "pending";
   return [inQueue, running, completed];
+}
+
+function getJobEvents(job: JobItem): JobEvent[] {
+  const directEvents = Array.isArray(job.eventos) ? job.eventos : [];
+  const resultEvents = Array.isArray(job.resultado?.eventos) ? job.resultado.eventos : [];
+
+  return [...directEvents, ...resultEvents]
+    .filter((event): event is JobEvent => {
+      return typeof event?.mensagem === "string" && Boolean(event.mensagem.trim());
+    })
+    .filter((event, index, events) => {
+      return events.findIndex((item) => item.mensagem === event.mensagem) === index;
+    });
 }
 
 function elapsedFromJob(job: JobItem | null, nowMs: number): string {
@@ -288,6 +349,8 @@ export function App() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [isSendingBluepex, setIsSendingBluepex] = useState(false);
   const [isSendingConsultor, setIsSendingConsultor] = useState(false);
+  const [isSendingGcv, setIsSendingGcv] = useState(false);
+  const [isGcvConfirmOpen, setIsGcvConfirmOpen] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
   const [clockMs, setClockMs] = useState(Date.now());
   const [bluepexNome, setBluepexNome] = useState("");
@@ -302,9 +365,19 @@ export function App() {
 
   const statusLabelText = useMemo(() => summarizeJob(state.job_atual), [state.job_atual]);
   const statusTone = useMemo(() => resolveStatusTone(state.job_atual), [state.job_atual]);
+  const hasGcvReinicioActive = useMemo(() => {
+    return (
+      state.job_atual?.tipo === "gcv_reinicio" ||
+      state.fila.some((item) => item.tipo === "gcv_reinicio")
+    );
+  }, [state.fila, state.job_atual]);
 
   const timelineJob = state.job_atual ?? state.historico[0] ?? null;
   const timelineElapsed = elapsedFromJob(timelineJob, clockMs);
+  const timelineTitle = state.job_atual ? "Linha do tempo" : "Última execução";
+  const timelineDescription = state.job_atual
+    ? "Acompanhamento em tempo real da execução atual."
+    : "Resumo do último job finalizado.";
 
   const filteredHistory = useMemo(() => {
     const query = historyQuery.trim().toLowerCase();
@@ -456,7 +529,7 @@ export function App() {
     setAuthUser(null);
     setLogin("");
     setSenha("");
-    pushNotice("Sessao encerrada.", "aviso");
+    pushNotice("Sessão encerrada.", "aviso");
   }
 
   async function handleBluepexSubmit(event: FormEvent<HTMLFormElement>) {
@@ -501,6 +574,36 @@ export function App() {
     }
   }
 
+  function handleGcvRequest() {
+    if (hasGcvReinicioActive || isSendingGcv) {
+      pushNotice("Reinício GCV em andamento", "aviso");
+      return;
+    }
+
+    setIsGcvConfirmOpen(true);
+  }
+
+  async function handleGcvConfirm() {
+    setIsSendingGcv(true);
+
+    try {
+      const response = await submitGcvReinicio();
+
+      if (response.state) {
+        setState(response.state);
+      }
+
+      setIsGcvConfirmOpen(false);
+      pushNotice(response.message || "Reinício GCV enfileirado com sucesso.", response.level || "ok");
+      await carregarStatusAtual();
+    } catch (error) {
+      pushNotice(error instanceof Error ? error.message : "Falha ao enfileirar reinício GCV.", "erro");
+      await carregarStatusAtual().catch(() => undefined);
+    } finally {
+      setIsSendingGcv(false);
+    }
+  }
+
   if (booting) {
     return <div className="loading-state">Carregando painel...</div>;
   }
@@ -510,7 +613,7 @@ export function App() {
       <main className="auth-shell">
         <section className="auth-card">
           <p className="kicker">Acesso restrito</p>
-          <h1>Painel de automacoes</h1>
+          <h1>Painel de automações</h1>
           <p>Informe login e senha para entrar.</p>
           <NoticeStack notices={notices} />
           <form className="auth-form" onSubmit={handleLogin}>
@@ -541,15 +644,15 @@ export function App() {
   return (
     <main className="dashboard-shell">
       <header className="topbar">
-        <div>
+        <div className="topbar-title">
           <p className="kicker">Painel operacional</p>
-          <h1>Execucao de automacoes</h1>
+          <h1>Painel de automações</h1>
         </div>
         <div className="topbar-meta">
           <span className={`status-pill ${statusTone}`}>{statusLabelText}</span>
           <span className="badge">Fila: {state.fila.length}</span>
-          <span className="badge">Historico: {state.historico.length}</span>
-          <span className="badge">Usuario: {authUser || "-"}</span>
+          <span className="badge">Histórico: {state.historico.length}</span>
+          <span className="badge">Usuário: {authUser || "-"}</span>
           <button className="ghost" type="button" onClick={handleLogout}>
             Sair
           </button>
@@ -557,70 +660,100 @@ export function App() {
       </header>
 
       <NoticeStack notices={notices} />
+      <ConfirmDialog
+        open={isGcvConfirmOpen}
+        sending={isSendingGcv}
+        onCancel={() => setIsGcvConfirmOpen(false)}
+        onConfirm={handleGcvConfirm}
+      />
 
       <section className="panel-grid">
-        <article className="panel">
+        <article className="panel panel-wide">
           <header>
-            <h2>Nova execucao</h2>
-            <p>Envio manual para as duas automacoes.</p>
+            <h2>Nova execução</h2>
+            <p>Execução manual das automações.</p>
           </header>
-          <div className="two-col">
-            <form className="job-form" onSubmit={handleBluepexSubmit}>
+          <div className="job-card-grid">
+            <form className="job-form automation-card" onSubmit={handleBluepexSubmit}>
               <h3>BluePex</h3>
-              <Field
-                label="Nome do visitante"
-                name="bluepex-nome"
-                value={bluepexNome}
-                onChange={setBluepexNome}
-                placeholder="Ex.: Visitante TI"
-              />
-              <Field
-                label="MAC"
-                name="bluepex-mac"
-                value={bluepexMac}
-                onChange={setBluepexMac}
-                placeholder="AA:BB:CC:DD:EE:FF"
-              />
+              <div className="automation-fields">
+                <Field
+                  label="Nome do visitante"
+                  name="bluepex-nome"
+                  value={bluepexNome}
+                  onChange={setBluepexNome}
+                  placeholder="Ex.: Visitante TI"
+                />
+                <Field
+                  label="MAC"
+                  name="bluepex-mac"
+                  value={bluepexMac}
+                  onChange={setBluepexMac}
+                  placeholder="AA:BB:CC:DD:EE:FF"
+                />
+              </div>
               <button className="cta" disabled={isSendingBluepex} type="submit">
                 {isSendingBluepex ? "Enviando..." : "Executar BluePex"}
               </button>
             </form>
 
-            <form className="job-form" onSubmit={handleConsultorSubmit}>
+            <form className="job-form automation-card" onSubmit={handleConsultorSubmit}>
               <h3>Consultor</h3>
-              <Field
-                label="Nome do consultor"
-                name="consultor-nome"
-                value={consultorNome}
-                onChange={setConsultorNome}
-                placeholder="Ex.: CSCELSO"
-              />
-              <Field
-                label="Data limite"
-                name="consultor-data"
-                value={consultorData}
-                onChange={setConsultorData}
-                placeholder="DD/MM/AAAA"
-              />
+              <div className="automation-fields">
+                <Field
+                  label="Nome do consultor"
+                  name="consultor-nome"
+                  value={consultorNome}
+                  onChange={setConsultorNome}
+                  placeholder="Ex.: CSCELSO"
+                />
+                <Field
+                  label="Data limite"
+                  name="consultor-data"
+                  value={consultorData}
+                  onChange={setConsultorData}
+                  placeholder="DD/MM/AAAA"
+                />
+              </div>
               <button className="cta" disabled={isSendingConsultor} type="submit">
                 {isSendingConsultor ? "Enviando..." : "Executar Consultor"}
               </button>
             </form>
+
+            <div className="job-form automation-card gcv-card">
+              <h3>Robôs GCV</h3>
+              <div className="automation-fields">
+                <p>Reinicia os robôs do ambiente GCV.</p>
+                <span className="status-tag warning">Interrompe e inicia novamente</span>
+              </div>
+              <button
+                className="cta"
+                disabled={isSendingGcv || hasGcvReinicioActive}
+                onClick={handleGcvRequest}
+                type="button"
+              >
+                {isSendingGcv
+                  ? "Enfileirando..."
+                  : hasGcvReinicioActive
+                    ? "Reinício GCV em andamento"
+                    : "Reiniciar robôs GCV"}
+              </button>
+            </div>
           </div>
         </article>
 
         <article className="panel">
           <header>
-            <h2>Linha do tempo</h2>
-            <p>Acompanhamento em tempo real da execucao atual.</p>
+            <h2>{timelineTitle}</h2>
+            <p>{timelineDescription}</p>
           </header>
           <Timeline job={timelineJob} elapsed={timelineElapsed} />
         </article>
 
         <article className="panel">
           <header>
-            <h2>Execucao atual</h2>
-            <p>Job em andamento e payload enviado.</p>
+            <h2>Execução atual</h2>
+            <p>Job em andamento e dados enviados.</p>
           </header>
           <JobDetails job={state.job_atual} />
         </article>
@@ -635,7 +768,7 @@ export function App() {
 
         <article className="panel panel-wide">
           <header>
-            <h2>Historico</h2>
+            <h2>Histórico</h2>
             <p>Filtros por tipo, status e busca textual.</p>
           </header>
           <div className="history-filters">
@@ -648,6 +781,7 @@ export function App() {
                 <option value="todos">Todos</option>
                 <option value="bluepex">BluePex</option>
                 <option value="consultor">Consultor</option>
+                <option value="gcv_reinicio">Robôs GCV</option>
               </select>
             </label>
             <label>
@@ -657,7 +791,7 @@ export function App() {
                 onChange={(event) => setHistoryStatusFilter(event.target.value as HistoryStatusFilter)}
               >
                 <option value="todos">Todos</option>
-                <option value="concluido">Concluido</option>
+                <option value="concluido">Concluído</option>
                 <option value="falha">Falha</option>
               </select>
             </label>
