@@ -59,6 +59,7 @@ RDP_TITLE_REGEX = os.getenv(
 LOGIN_TIMEOUT_S = int(os.getenv("GCV_LOGIN_TIMEOUT_S", "60"))
 DESKTOP_TIMEOUT_S = int(os.getenv("GCV_DESKTOP_TIMEOUT_S", "120"))
 STOP_VISUAL_TIMEOUT_S = float(os.getenv("GCV_STOP_VISUAL_TIMEOUT_S", "15"))
+AVISO_OPTIONAL_TIMEOUT_S = float(os.getenv("GCV_AVISO_OPTIONAL_TIMEOUT_S", "5"))
 VISUAL_POLL_INTERVAL_S = float(os.getenv("GCV_VISUAL_POLL_INTERVAL_S", "0.5"))
 MONITORAR_TIMEOUT_S = int(os.getenv("GCV_MONITORAR_TIMEOUT_S", "60"))
 RDP_REVEAL_BAR_DELAY_S = float(os.getenv("GCV_RDP_REVEAL_BAR_DELAY_S", "2"))
@@ -323,19 +324,7 @@ def _executar_reinicio(notificar, state):
 
     _log("Aguardando 10 segundos após Parar Robôs.")
     time.sleep(10)
-    _fechar_template_na_rdp(
-        rdp_window,
-        config.aviso_robos_encerrados_images,
-        "aviso de robôs encerrados",
-        AVISO_CLOSE_X_RATIO,
-        AVISO_CLOSE_Y_RATIO,
-    )
-    time.sleep(2)
-    _confirmar_template_sumiu_na_rdp(
-        rdp_window,
-        config.aviso_robos_encerrados_images,
-        "aviso de robôs encerrados",
-    )
+    _tentar_fechar_aviso_robos_encerrados_na_rdp(rdp_window, config)
     _fechar_terminal_parar_robos_na_rdp(rdp_window, config)
     _log("Procurando Monitorar Robôs.")
 
@@ -1252,6 +1241,48 @@ def _fechar_template_na_rdp(rdp_window, imagens, descricao, x_ratio, y_ratio):
     )
     _pyautogui().click(x=x, y=y)
     _log(f"Clique no X do {descricao} executado.")
+
+
+def _tentar_fechar_aviso_robos_encerrados_na_rdp(rdp_window, config):
+    _log("Procurando aviso de robôs encerrados.")
+    deadline = time.monotonic() + AVISO_OPTIONAL_TIMEOUT_S
+    hwnd = _obter_hwnd_rdp(rdp_window)
+    _log_retangulo_rdp(hwnd)
+
+    while time.monotonic() < deadline:
+        screenshot, origem = _screenshot_janela_por_hwnd(hwnd)
+        match = _localizar_imagem(
+            screenshot,
+            origem,
+            config.aviso_robos_encerrados_images,
+        )
+
+        if match:
+            _log_match_localizado("aviso de robôs encerrados", match)
+            x = int(round(match.left + match.width * AVISO_CLOSE_X_RATIO))
+            y = int(round(match.top + match.height * AVISO_CLOSE_Y_RATIO))
+            _log(
+                "Coordenada calculada para o X do aviso de robôs encerrados: "
+                f"x={x}, y={y}, "
+                f"proporcao=({AVISO_CLOSE_X_RATIO:.4f},{AVISO_CLOSE_Y_RATIO:.4f}), "
+                f"{_formatar_match(match)}."
+            )
+            _pyautogui().click(x=x, y=y)
+            _log("Clique no X do aviso de robôs encerrados executado.")
+            time.sleep(2)
+            _confirmar_template_sumiu_na_rdp(
+                rdp_window,
+                config.aviso_robos_encerrados_images,
+                "aviso de robôs encerrados",
+            )
+            return True
+
+        time.sleep(VISUAL_POLL_INTERVAL_S)
+
+    _log(
+        "Aviso de robôs encerrados não localizado; seguindo sem fechamento do aviso."
+    )
+    return False
 
 
 def _fechar_terminal_parar_robos_na_rdp(rdp_window, config):
