@@ -78,6 +78,7 @@ backend\src\bot_app\assets\gcv\aviso_robos_encerrados.png
 backend\src\bot_app\assets\gcv\terminal_parar_robos.png
 backend\src\bot_app\assets\gcv\fechar_terminal_parar_robos.png
 backend\src\bot_app\assets\gcv\fechar_rdp_normal.png
+backend\src\bot_app\assets\gcv\fechar_rdp_normal_servidor.png
 backend\src\bot_app\assets\gcv\fechar_rdp_hover.png
 backend\src\bot_app\assets\gcv\confirmacao_desconexao_rdp.png
 backend\src\bot_app\assets\gcv\ok_desconexao_rdp.png
@@ -87,7 +88,7 @@ Os templates dos atalhos devem ser recortes limpos feitos dentro da Area de Trab
 
 Os templates `aviso_robos_encerrados.png` e `terminal_parar_robos.png` devem ser recortes da barra superior completa de cada janela, incluindo o titulo e o botao `X`. O aviso ainda usa clique calculado relativamente ao template encontrado. O terminal usa `terminal_parar_robos.png` para limitar a busca e depois procura visualmente `fechar_terminal_parar_robos.png` no canto superior direito dele.
 
-Os templates `fechar_rdp_normal.png` e `fechar_rdp_hover.png` devem ser recortes do botao `X` da barra superior da RDP. O template `confirmacao_desconexao_rdp.png` deve conter a janela de confirmacao da desconexao, incluindo a area onde fica o botao `OK`. O template `ok_desconexao_rdp.png` deve conter somente o botao `OK` completo.
+Os templates `fechar_rdp_normal.png`, `fechar_rdp_normal_servidor.png` e `fechar_rdp_hover.png` devem ser recortes do botao `X` da barra superior da RDP. Os dois templates normais sao mantidos por padrao para compatibilidade com ambientes diferentes. O template `confirmacao_desconexao_rdp.png` deve conter a janela de confirmacao da desconexao, incluindo a area onde fica o botao `OK`. O template `ok_desconexao_rdp.png` deve conter somente o botao `OK` completo.
 
 As variaveis abaixo sao opcionais e servem apenas para substituir os templates padrao:
 
@@ -97,7 +98,7 @@ GCV_MONITORAR_ROBOS_IMAGE=backend\src\bot_app\assets\gcv\monitorar_robos.png
 GCV_AVISO_ROBOS_ENCERRADOS_IMAGE=backend\src\bot_app\assets\gcv\aviso_robos_encerrados.png
 GCV_TERMINAL_PARAR_ROBOS_IMAGE=backend\src\bot_app\assets\gcv\terminal_parar_robos.png
 GCV_FECHAR_TERMINAL_PARAR_ROBOS_IMAGE=backend\src\bot_app\assets\gcv\fechar_terminal_parar_robos.png
-GCV_FECHAR_RDP_NORMAL_IMAGE=backend\src\bot_app\assets\gcv\fechar_rdp_normal.png
+GCV_FECHAR_RDP_NORMAL_IMAGE=backend\src\bot_app\assets\gcv\fechar_rdp_normal.png;backend\src\bot_app\assets\gcv\fechar_rdp_normal_servidor.png
 GCV_FECHAR_RDP_HOVER_IMAGE=backend\src\bot_app\assets\gcv\fechar_rdp_hover.png
 GCV_CONFIRMACAO_DESCONEXAO_RDP_IMAGE=backend\src\bot_app\assets\gcv\confirmacao_desconexao_rdp.png
 GCV_OK_DESCONEXAO_RDP_IMAGE=backend\src\bot_app\assets\gcv\ok_desconexao_rdp.png

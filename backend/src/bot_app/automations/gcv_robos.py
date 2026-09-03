@@ -85,6 +85,13 @@ DEFAULT_FECHAR_TERMINAL_PARAR_ROBOS_IMAGE = (
     GCV_ASSETS_DIR / "fechar_terminal_parar_robos.png"
 )
 DEFAULT_FECHAR_RDP_NORMAL_IMAGE = GCV_ASSETS_DIR / "fechar_rdp_normal.png"
+DEFAULT_FECHAR_RDP_NORMAL_SERVIDOR_IMAGE = (
+    GCV_ASSETS_DIR / "fechar_rdp_normal_servidor.png"
+)
+DEFAULT_FECHAR_RDP_NORMAL_IMAGES = (
+    DEFAULT_FECHAR_RDP_NORMAL_IMAGE,
+    DEFAULT_FECHAR_RDP_NORMAL_SERVIDOR_IMAGE,
+)
 DEFAULT_FECHAR_RDP_HOVER_IMAGE = GCV_ASSETS_DIR / "fechar_rdp_hover.png"
 DEFAULT_CONFIRMACAO_DESCONEXAO_RDP_IMAGE = (
     GCV_ASSETS_DIR / "confirmacao_desconexao_rdp.png"
@@ -415,7 +422,7 @@ def _diagnosticar_templates():
         "fechar_rdp_normal": _diagnosticar_template(
             "Fechar RDP normal",
             "GCV_FECHAR_RDP_NORMAL_IMAGE",
-            DEFAULT_FECHAR_RDP_NORMAL_IMAGE,
+            DEFAULT_FECHAR_RDP_NORMAL_IMAGES,
         ),
         "fechar_rdp_hover": _diagnosticar_template(
             "Fechar RDP hover",
@@ -544,7 +551,7 @@ def _resolver_templates_fechamento_rdp():
     return (
         _resolver_template_padrao_ou_env_sem_validar(
             "GCV_FECHAR_RDP_NORMAL_IMAGE",
-            DEFAULT_FECHAR_RDP_NORMAL_IMAGE,
+            DEFAULT_FECHAR_RDP_NORMAL_IMAGES,
         ),
         _resolver_template_padrao_ou_env_sem_validar(
             "GCV_FECHAR_RDP_HOVER_IMAGE",
@@ -564,7 +571,7 @@ def _resolver_templates_fechamento_rdp():
 def _resolver_template_padrao_ou_env_sem_validar(env_name, default_path):
     raw = (os.getenv(env_name) or "").strip()
     if not raw:
-        return [default_path]
+        return _normalizar_template_paths(default_path)
 
     paths = []
     for parte in re.split(r"[;|]", raw):
@@ -826,11 +833,21 @@ def _resolver_template_padrao_ou_env(rotulo, env_name, default_path):
     if raw:
         return _resolver_paths_imagens(env_name, obrigatorio=True, rotulo=rotulo)
 
-    if not default_path.is_file():
+    paths = _normalizar_template_paths(default_path)
+    ausentes = [path for path in paths if not path.is_file()]
+    if ausentes:
+        detalhes = ", ".join(_caminho_para_log(path) for path in ausentes)
         raise GcvAutomationError(
-            f"Template {rotulo} ausente: '{_caminho_para_log(default_path)}'.",
+            f"Template {rotulo} ausente: '{detalhes}'.",
             code="template_ausente",
         )
+
+    return paths
+
+
+def _normalizar_template_paths(default_path):
+    if isinstance(default_path, (list, tuple)):
+        return list(default_path)
 
     return [default_path]
 
