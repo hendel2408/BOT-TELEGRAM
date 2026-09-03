@@ -625,7 +625,7 @@ export function App() {
           <JobDetails job={state.job_atual} />
         </article>
 
-        <article className="panel">
+        <article className="panel panel-wide">
           <header>
             <h2>Fila</h2>
             <p>Itens aguardando no worker.</p>
